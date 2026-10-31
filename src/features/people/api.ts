@@ -17,6 +17,7 @@ import { helperRequest, PeopleApiError, type RequestOptions, type Transport } fr
 import { resolveHelperUrl } from './config';
 import type { LifecycleAction, ArchivedPerson, AuditEntry, HrCard, Line, Person, Unit, WorkPatch } from './model';
 import type { MoveTarget } from './tree';
+import type { ExportResult, ImportPreview, ImportResult, MirrorReport, MirrorStatus, SheetsStatus } from './exchange';
 import type { PeopleRole } from './menu';
 
 export { PeopleApiError } from './client';
@@ -111,4 +112,17 @@ export const peopleApi = {
     ),
   archive: (signal?: AbortSignal) =>
     peopleFetch<{ people: ArchivedPerson[] }>('/archive', { signal }).then((r) => r.people),
+
+  // Google Sheets exchange. Rows travel in the request body only; the HR export (hr: true) is HR/admin only.
+  sheetsStatus: (signal?: AbortSignal) => peopleFetch<SheetsStatus>('/sheets/status', { signal }),
+  exportSheet: (input: { hr?: boolean; spreadsheetId?: string; sheet?: string }) =>
+    peopleFetch<ExportResult>('/sheets/export', { method: 'POST', body: input }),
+  importPreview: (source: { rows: string[][] } | { spreadsheetId: string; sheet: string }) =>
+    peopleFetch<ImportPreview>('/sheets/import/preview', { method: 'POST', body: source }),
+  importApply: (input: { previewId: string; confirm: true; rows?: string[][] }) =>
+    peopleFetch<ImportResult>('/sheets/import/apply', { method: 'POST', body: input }),
+  mirrors: (signal?: AbortSignal) =>
+    peopleFetch<{ mirrors: MirrorStatus[] }>('/sheets/mirrors', { signal }).then((r) => r.mirrors),
+  runMirrors: () =>
+    peopleFetch<{ reports: MirrorReport[] }>('/sheets/mirrors/run', { method: 'POST' }).then((r) => r.reports),
 };

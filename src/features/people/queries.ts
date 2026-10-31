@@ -20,6 +20,8 @@ export const peopleKeys = {
   lines: [ROOT, 'lines'] as const,
   audit: (id: string) => [ROOT, 'audit', id] as const,
   archive: [ROOT, 'archive'] as const,
+  sheetsStatus: [ROOT, 'sheets-status'] as const,
+  mirrors: [ROOT, 'mirrors'] as const,
 };
 
 /** Helper refusals (4xx) are answers, not glitches: no retries for them. */
@@ -54,6 +56,11 @@ export const useArchive = (enabled: boolean) =>
     enabled,
     gcTime: 0,
   });
+
+export const useSheetsStatus = () =>
+  useQuery({ ...base, queryKey: peopleKeys.sheetsStatus, queryFn: ({ signal }) => peopleApi.sheetsStatus(signal) });
+export const useMirrors = () =>
+  useQuery({ ...base, queryKey: peopleKeys.mirrors, queryFn: ({ signal }) => peopleApi.mirrors(signal) });
 
 /** After any change: the registry is small, refetch what is on screen. */
 export function useRefreshPeople() {
