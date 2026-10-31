@@ -12,8 +12,13 @@
 export const MAX_IMPORT_ROWS = 5000;
 const MAX_COLUMNS = 100;
 
-/** A cell a spreadsheet would run as a formula gets a leading apostrophe (shown as text). Phone numbers (+…) stay. */
-const guard = (v: string) => (/^[=@]/.test(v) ? `'${v}` : v);
+/**
+ * OWASP CSV injection: a cell starting with = + - @ tab or CR could run as a formula, so it gets a leading apostrophe
+ * (shown as text). Exempt: something that is plainly a phone number (digits, spaces, brackets, dashes, optional +).
+ */
+const FORMULA_START = /^[=+\-@\t\r]/;
+const PHONE = /^\+?[\d\s()-]{5,}$/;
+const guard = (v: string) => (FORMULA_START.test(v) && !PHONE.test(v) ? `'${v}` : v);
 const quote = (v: string) => (/[",;\t\r\n]/.test(v) || v !== v.trim() ? `"${v.replace(/"/g, '""')}"` : v);
 
 export function toCsv(rows: string[][]): string {
@@ -75,8 +80,9 @@ export function parseCsv(input: string): string[][] {
   return rows;
 }
 
-/** Undo the export's formula guard before sending rows to the helper. */
-export const importCells = (rows: string[][]): string[][] => rows.map((r) => r.map((c) => c.replace(/^'(?=[=@])/, '')));
+/** Undo the export's formula guard (only before exactly the guarded characters) before sending rows to the helper. */
+export const importCells = (rows: string[][]): string[][] =>
+  rows.map((r) => r.map((c) => c.replace(/^'(?=[=+\-@\t\r])/, '')));
 
 /** The id of a Google spreadsheet from its link or the bare id; null for anything else. */
 export function spreadsheetIdOf(input: string): string | null {

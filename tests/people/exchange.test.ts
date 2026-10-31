@@ -29,9 +29,33 @@ test('csv roundtrip: quotes, separators, new lines inside cells, BOM for Excel',
   );
 });
 
-test('csv: formula-looking cells are neutralised on export (CSV injection)', () => {
-  const csv = toCsv([['=HYPERLINK("x")', '+380', '-5', '@a', 'ok']]);
-  assert.deepEqual(parseCsv(csv)[0], ['\'=HYPERLINK("x")', '+380', '-5', "'@a", 'ok']);
+test('csv: formula-looking cells are neutralised on export (OWASP: = + - @ tab CR), phone numbers stay', () => {
+  const cells = [
+    '=HYPERLINK("x")',
+    '+SUM(A1)',
+    '-5',
+    '@a',
+    '\tx',
+    '\rx',
+    'ok',
+    '+380 44 100 0000',
+    '+38 (044) 100-00-00',
+    '0441000000',
+    '-',
+  ];
+  assert.deepEqual(parseCsv(toCsv([cells]))[0], [
+    '\'=HYPERLINK("x")',
+    "'+SUM(A1)",
+    "'-5",
+    "'@a",
+    "'\tx",
+    "'\rx",
+    'ok',
+    '+380 44 100 0000',
+    '+38 (044) 100-00-00',
+    '0441000000',
+    "'-",
+  ]);
 });
 
 test('csv parse: the separator is detected from the header (comma, semicolon, tab), CRLF and BOM tolerated', () => {
@@ -73,6 +97,8 @@ test('export file name carries the date and marks HR exports', () => {
   assert.equal(csvFileName(at, true), 'personal-HR-2026-10-31.csv');
 });
 
-test('import cells: the export guard apostrophe is removed again, nothing else changes', () => {
-  assert.deepEqual(importCells([["'=1+1", "'@a", "'текст", '+380']]), [['=1+1', '@a', "'текст", '+380']]);
+test('import cells: the export guard apostrophe is removed only before = + - @ tab CR', () => {
+  assert.deepEqual(importCells([["'=1+1", "'@a", "'+SUM(A1)", "'-5", "'\tx", "'текст", "'1", '+380']]), [
+    ['=1+1', '@a', '+SUM(A1)', '-5', '\tx', "'текст", "'1", '+380'],
+  ]);
 });
