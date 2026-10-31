@@ -1,0 +1,145 @@
+name: "Fork: sync upstream and release uk"
+
+# NikNikolaenkov/webui (see FORK.md). Every night: merge stalwartlabs/webui main
+# into `uk`, run the fork checks, report translation coverage (UI strings and the
+# server schema of STALWART_TAG), build webui.zip and publish it as
+# `uk-v<version>-<run>` and the rolling `uk-latest`, which mail.servgc.space
+# downloads. A merge conflict opens an issue instead.
+#
+# SYNC_TOKEN: fine-grained PAT on this repository (Contents RW, Workflows RW);
+# GITHUB_TOKEN cannot push upstream changes to .github/workflows.
+
+on:
+  schedule:
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: uk-sync-release
+  cancel-in-progress: false
+
+env:
+  UPSTREAM: https://github.com/stalwartlabs/webui.git
+  # Stalwart server release whose schema the dictionary is checked against.
+  STALWART_TAG: v1.0.1
+  CONFLICT_TITLE: "Конфлікт злиття з апстрімом"
+  # In a fork gh defaults to the parent repository; releases and issues belong here.
+  GH_REPO: ${{ github.repository }}
+
+jobs:
+  sync-build-release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check SYNC_TOKEN
+        env:
+          SYNC_TOKEN: ${{ secrets.SYNC_TOKEN }}
+        run: |
+          if [ -z "$SYNC_TOKEN" ]; then
+            echo "::error::Секрет SYNC_TOKEN порожній або не заданий"; exit 1
+          fi
+          git ls-remote "https://x-access-token:${SYNC_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD >/dev/null \
+            || { echo "::error::SYNC_TOKEN не дає доступу до ${GITHUB_REPOSITORY}"; exit 1; }
+
+      - name: Checkout uk
+        uses: actions/checkout@v6
+        with:
+          ref: uk
+          fetch-depth: 0
+          token: ${{ secrets.SYNC_TOKEN }}
+
+      - name: Merge upstream main
+        id: merge
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name "uk-sync[bot]"
+          git config user.email "uk-sync@users.noreply.github.com"
+          git remote add upstream "$UPSTREAM"
+          git fetch --no-tags upstream main
+          before=$(git rev-parse HEAD)
+          if ! git merge --no-edit upstream/main; then
+            git merge --abort || true
+            open=$(gh issue list --state open --search "\"$CONFLICT_TITLE\" in:title" --json number --jq length)
+            if [ "$open" = "0" ]; then
+              gh issue create --title "$CONFLICT_TITLE" \
+                --body "Нічна синхронізація не змогла злити \`upstream/main\` ($(git rev-parse --short upstream/main)) у \`uk\`. Злити вручну й розв'язати конфлікт; запуск: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            fi
+            echo "::error::Конфлікт злиття з апстрімом"; exit 1
+          fi
+          if [ "$(git rev-parse HEAD)" = "$before" ] && [ "$GITHUB_EVENT_NAME" != "workflow_dispatch" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "Нових комітів апстріму немає — пропуск." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Setup Node.js
+        if: steps.merge.outputs.skip != 'true'
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        if: steps.merge.outputs.skip != 'true'
+        run: npm ci
+
+      - name: Typecheck and lint
+        if: steps.merge.outputs.skip != 'true'
+        run: |
+          npm run typecheck
+          npx eslint src/
+
+      - name: Fork tests
+        if: steps.merge.outputs.skip != 'true'
+        run: node --experimental-strip-types --test tests/i18n/*.test.ts
+
+      - name: Translation coverage (report only)
+        if: steps.merge.outputs.skip != 'true'
+        run: |
+          curl -fsSL "https://raw.githubusercontent.com/stalwartlabs/stalwart/${STALWART_TAG}/resources/schema/schema.json.gz" | gunzip > "$RUNNER_TEMP/schema.json"
+          {
+            echo "### Переклад uk (схема Stalwart ${STALWART_TAG})"
+            echo '```'
+            node --experimental-strip-types tools/i18n/ui-sync.ts src/i18n/en.json src/i18n/uk.json --check
+            node --experimental-strip-types tools/i18n/schema-sync.ts "$RUNNER_TEMP/schema.json" src/i18n/schema/uk.json --check
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Build webui.zip
+        if: steps.merge.outputs.skip != 'true'
+        run: |
+          npm run build
+          (cd dist && zip -qr ../webui.zip .)
+          unzip -p webui.zip stalwart-app.json > "$RUNNER_TEMP/app.json"
+          node -e 'const m=require(process.argv[1]); if (m.id!=="webui" || !String(m.version).startsWith("2.")) { console.error(m); process.exit(1) }' "$RUNNER_TEMP/app.json"
+          sha256sum webui.zip > webui.zip.sha256
+
+      - name: Push uk and mirror main
+        if: steps.merge.outputs.skip != 'true'
+        run: |
+          git push origin HEAD:uk
+          git push origin upstream/main:refs/heads/main
+
+      - name: Release
+        if: steps.merge.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(node -p "require('./package.json').version")
+          tag="uk-v${version}-${GITHUB_RUN_NUMBER}"
+          sha=$(git rev-parse HEAD)
+          gh release create "$tag" webui.zip webui.zip.sha256 \
+            --target "$sha" --title "$tag" --latest=false \
+            --notes "Stalwart WebUI ${version} (апстрім $(git rev-parse --short upstream/main)) з українською мовою. Коміт ${sha}."
+          if gh release view uk-latest >/dev/null 2>&1; then
+            gh release upload uk-latest webui.zip webui.zip.sha256 --clobber
+            gh release edit uk-latest --notes "Останній збірний бандл: ${tag}."
+          else
+            gh release create uk-latest webui.zip webui.zip.sha256 \
+              --target "$sha" --title "uk-latest" --notes "Останній збірний бандл: ${tag}." --latest=false
+          fi
+          echo "Реліз: ${tag}" >> "$GITHUB_STEP_SUMMARY"
