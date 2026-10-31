@@ -64,6 +64,7 @@ export const OrgNode = memo(function OrgNode({
   const dim = person && person.status !== 'active';
   const isSelected = Boolean(selected && (person?.cardId === selected || (isUnit && head?.cardId === selected)));
   const id = node.id;
+  const blockName = node.virtual ? t('people.org.noUnit', 'No unit') : (node.unit?.name ?? person?.fullName ?? '');
 
   return (
     <div
@@ -159,8 +160,11 @@ export const OrgNode = memo(function OrgNode({
           aria-expanded={!node.collapsed}
           aria-label={
             node.collapsed
-              ? t('people.org.expand', 'Expand ({{count}} below)', { count: node.hiddenCount })
-              : t('people.org.collapse', 'Collapse')
+              ? t('people.org.expand', 'Expand «{{name}}» ({{count}} below)', {
+                  name: blockName,
+                  count: node.hiddenCount,
+                })
+              : t('people.org.collapse', 'Collapse «{{name}}»', { name: blockName })
           }
           onClick={() => handlers?.toggle(id)}
           className="absolute -bottom-3 left-1/2 flex h-6 -translate-x-1/2 items-center gap-0.5 rounded-full border border-border bg-card px-1.5 text-[11px] font-semibold tabular-nums text-muted-foreground shadow-tile hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"

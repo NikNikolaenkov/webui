@@ -5,37 +5,39 @@
  */
 
 /* «PDF» on the org chart: the chart as it is on screen (current expansion) is rendered into a sheet attached to
-   <body> and everything else is hidden while printing. A stylesheet file, not an inline <style>, so a strict
-   style-src CSP keeps working. */
+   <body>. Every print rule is keyed on html.org-printing, set by OrgChart only from beforeprint to afterprint (and
+   cleared when the page unmounts), so printing any other page of the admin UI is untouched. The landscape size is a
+   named page used only by the sheet. A stylesheet file, not an inline <style>, so a strict style-src CSP works. */
 .org-print-sheet {
   display: none;
 }
 
-@media print {
-  @page {
-    size: A4 landscape;
-    margin: 10mm;
-  }
+@page org-chart {
+  size: A4 landscape;
+  margin: 10mm;
+}
 
-  body > *:not(.org-print-sheet) {
+@media print {
+  html.org-printing body > *:not(.org-print-sheet) {
     display: none !important;
   }
 
-  html,
-  body {
+  html.org-printing,
+  html.org-printing body {
     height: auto !important;
     overflow: visible !important;
     background: #fff !important;
   }
 
-  .org-print-sheet {
+  html.org-printing .org-print-sheet {
     display: block;
+    page: org-chart;
     color: #1f1b16;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
 
-  .org-print-sheet .org-node {
+  html.org-printing .org-print-sheet .org-node {
     box-shadow: none;
     break-inside: avoid;
   }

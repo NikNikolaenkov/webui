@@ -29,6 +29,8 @@ import { buildOrgTree, collapsibleNodes, defaultCollapsed, visibleGraph, type No
 import { layoutOrg, ORG_SIZES, type OrgLayout } from './layout';
 import { OrgNode, type DropState, type NodeHandlers } from './OrgNode';
 import { PersonDrawer } from './PersonDrawer';
+import { moveText, type Move, type Translate } from './text';
+import { origin, panBy, reanchor as reanchorView, rebase, zoomAround, type AnchoredView } from './view';
 import './org.css';
 
 /** Blocks with more people below than this start collapsed (the roots never do). */
@@ -40,14 +42,8 @@ const STEP = 0.1;
 const PRINT_WIDTH = 1040;
 const DRAG_TYPE = 'application/x-people-org-node';
 
-interface AnchoredView {
-  anchor: NodeId;
-  sx: number;
-  sy: number;
-  scale: number;
-}
-
-type Move = Extract<DropPlan, { kind: 'person' | 'unit' }>;
+/** Set on <html> only while the chart is being printed: org.css hides the rest of the app under it. */
+const PRINTING_CLASS = 'org-printing';
 
 const clamp = (s: number) => Math.min(MAX_SCALE, Math.max(MIN_SCALE, Math.round(s * 100) / 100));
 
@@ -122,7 +118,6 @@ export function OrgChart() {
   const graph = useMemo(() => visibleGraph(tree, collapsed), [tree, collapsed]);
   const layout = useMemo(() => layoutOrg(graph), [graph]);
   const byCard = useMemo(() => new Map((peopleList ?? []).map((p) => [p.cardId, p])), [peopleList]);
-  const unitName = useMemo(() => new Map((unitList ?? []).map((u) => [u.id, u.name])), [unitList]);
 
   // The view is anchored to a block: that block's top-left is at (sx, sy) on screen. Expanding or collapsing
   // re-anchors to the toggled block, so it stays under the pointer while the layout around it changes.
@@ -143,12 +138,26 @@ export function OrgChart() {
     () => (firstRoot ? { anchor: firstRoot, sx: viewportW / 2 - ORG_SIZES.nodeW / 2, sy: 12, scale: 1 } : null),
     [firstRoot, viewportW],
   );
+  // A new layout (refetch, «collapse all») may drop the anchor block: re-anchor to its nearest visible ancestor
+  // (or the main root) keeping the canvas where it was. Adjusting state while rendering, as React recommends for
+  // state derived from a changed input.
+  const [laidOut, setLaidOut] = useState(layout);
+  if (laidOut !== layout) {
+    setLaidOut(layout);
+    if (viewState && !layout.boxes.has(viewState.anchor)) {
+      const fallbacks: NodeId[] = [];
+      for (let id = tree.nodes.get(viewState.anchor)?.parentId; id; id = tree.nodes.get(id)?.parentId)
+        fallbacks.push(id);
+      if (firstRoot) fallbacks.push(firstRoot);
+      const next = rebase(viewState, laidOut, layout, fallbacks);
+      if (next) setViewState(next);
+    }
+  }
   const view = viewState ?? auto;
-  const rootBox = firstRoot ? layout.boxes.get(firstRoot) : undefined;
-  const anchorBox = (view && layout.boxes.get(view.anchor)) ?? rootBox;
   const scale = view?.scale ?? 1;
-  const tx = view && anchorBox ? view.sx - anchorBox.x * scale : 0;
-  const ty = view && anchorBox ? view.sy - anchorBox.y * scale : 0;
+  const at = (view && origin(view, layout)) ?? { x: 0, y: 0 };
+  const tx = at.x;
+  const ty = at.y;
 
   const attachViewport = useCallback((el: HTMLDivElement | null) => {
     setViewport(el);
@@ -168,17 +177,9 @@ export function OrgChart() {
     (id: NodeId) =>
       setViewState((v) => {
         const base = v ?? auto;
-        const from = base && (layout.boxes.get(base.anchor) ?? rootBox);
-        const to = layout.boxes.get(id);
-        if (!base || !from || !to) return v;
-        return {
-          anchor: id,
-          scale: base.scale,
-          sx: base.sx + (to.x - from.x) * base.scale,
-          sy: base.sy + (to.y - from.y) * base.scale,
-        };
+        return (base && reanchorView(base, layout, id)) ?? v;
       }),
-    [auto, layout, rootBox],
+    [auto, layout],
   );
 
   const zoomAt = useCallback(
@@ -186,11 +187,9 @@ export function OrgChart() {
       setViewState((v) => {
         const base = v ?? auto;
         if (!base) return v;
-        const next = clamp(base.scale * factor);
         const cx = px ?? (viewport ? viewport.clientWidth / 2 : 0);
         const cy = py ?? (viewport ? viewport.clientHeight / 2 : 0);
-        const k = next / base.scale;
-        return { ...base, scale: next, sx: cx - (cx - base.sx) * k, sy: cy - (cy - base.sy) * k };
+        return zoomAround(base, clamp(base.scale * factor), cx, cy);
       }),
     [auto, viewport],
   );
@@ -199,6 +198,8 @@ export function OrgChart() {
   useEffect(() => {
     if (!viewport) return;
     const onWheel = (e: WheelEvent) => {
+      // The drawer scrolls on its own.
+      if ((e.target as Element).closest('[data-org-drawer]')) return;
       e.preventDefault();
       if (e.ctrlKey || e.metaKey) {
         const r = viewport.getBoundingClientRect();
@@ -208,7 +209,7 @@ export function OrgChart() {
         const dy = e.shiftKey ? 0 : e.deltaY;
         setViewState((v) => {
           const base = v ?? auto;
-          return base && { ...base, sx: base.sx - dx, sy: base.sy - dy };
+          return base && panBy(base, -dx, -dy);
         });
       }
     };
@@ -216,20 +217,29 @@ export function OrgChart() {
     return () => viewport.removeEventListener('wheel', onWheel);
   }, [viewport, zoomAt, auto]);
 
-  // Printing (the PDF button or Ctrl+P): render the print sheet before the browser lays out the pages.
+  // Printing (the PDF button or Ctrl+P on this page): render the print sheet and set the flag org.css keys on before
+  // the browser lays out the pages; clear both afterwards and when leaving the page, so other pages print normally.
   useEffect(() => {
-    const before = () => flushSync(() => setPrinting(true));
-    const after = () => setPrinting(false);
+    const html = document.documentElement;
+    const before = () => {
+      html.classList.add(PRINTING_CLASS);
+      flushSync(() => setPrinting(true));
+    };
+    const after = () => {
+      html.classList.remove(PRINTING_CLASS);
+      setPrinting(false);
+    };
     window.addEventListener('beforeprint', before);
     window.addEventListener('afterprint', after);
     return () => {
       window.removeEventListener('beforeprint', before);
       window.removeEventListener('afterprint', after);
+      html.classList.remove(PRINTING_CLASS);
     };
   }, []);
 
   const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
-    if (e.button !== 0 || (e.target as Element).closest('[data-org-node], button, aside')) return;
+    if (e.button !== 0 || (e.target as Element).closest('[data-org-node], [data-org-drawer], button')) return;
     e.currentTarget.setPointerCapture(e.pointerId);
     pan.current = { id: e.pointerId, x: e.clientX, y: e.clientY };
   };
@@ -242,7 +252,7 @@ export function OrgChart() {
     p.y = e.clientY;
     setViewState((v) => {
       const base = v ?? auto;
-      return base && { ...base, sx: base.sx + dx, sy: base.sy + dy };
+      return base && panBy(base, dx, dy);
     });
   };
   const onPointerUp = (e: ReactPointerEvent<HTMLDivElement>) => {
@@ -320,9 +330,6 @@ export function OrgChart() {
     };
   }, [peopleList, unitList, collapsed, reanchor, refusal, t]);
 
-  const label = (id: NodeId) =>
-    id.startsWith('u:') ? (unitName.get(id.slice(2)) ?? id) : (byCard.get(id.slice(2))?.fullName ?? id);
-
   const confirmMove = async (move: Move) => {
     try {
       if (move.kind === 'person') await peopleApi.movePerson(move.cardId, move.target);
@@ -336,23 +343,7 @@ export function OrgChart() {
     }
   };
 
-  const pendingText = (move: Move) => {
-    const name = label(move.kind === 'person' ? `p:${move.cardId}` : `u:${move.unitId}`);
-    const target =
-      move.kind === 'unit'
-        ? (unitName.get(move.parentUnitId) ?? '')
-        : 'unitId' in move.target
-          ? (unitName.get(move.target.unitId) ?? '')
-          : (byCard.get(move.target.managerCardId)?.fullName ?? '');
-    let description = t('people.move.text', 'Subordinates move together with the person.');
-    if (move.kind === 'unit') description = t('people.org.unitMoveText', 'Nested units and their people move with it.');
-    else if ('unitId' in move.target) {
-      const head = unitList?.find((u) => u.id === (move.target as { unitId: string }).unitId)?.headCardId;
-      const headName = head && head !== move.cardId ? byCard.get(head)?.fullName : undefined;
-      description = `${headName ? t('people.org.underHead', 'Onto a unit: under its head, {{name}}.', { name: headName }) : t('people.org.noHeadMove', 'The unit has no head: the person will have no manager.')} ${description}`;
-    }
-    return { title: t('people.org.confirm', 'Move {{name}} under {{target}}?', { name, target }), description };
-  };
+  const tr: Translate = (key, text, opts) => t(key, text, opts ?? {});
 
   const selectedPerson = selected ? byCard.get(selected) : undefined;
   const selectedUnitForNew = selectedPerson?.unitId ?? null;
@@ -499,7 +490,7 @@ export function OrgChart() {
 
       {pending &&
         (() => {
-          const text = pendingText(pending);
+          const text = moveText(pending, peopleList, unitList, tr);
           return (
             <ConfirmDialog
               open

@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import type { ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { MoveRight, X } from 'lucide-react';
@@ -56,6 +56,9 @@ export function PersonDrawer({
   const role = usePeopleAccess((s) => s.role);
   // Birthday lives in the HR card: requested only for HR and admins (support never asks).
   const hr = useHrCard(person.cardId, shouldLoadHr(role));
+  // Focus moves into the panel when it opens (it is remounted per person); Escape closes it.
+  const heading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => heading.current?.focus(), []);
   const manager = person.managerCardId ? people.get(person.managerCardId) : undefined;
   const unit = unitPath(units, person.unitId).at(-1);
   const since = person.statusDates.created;
@@ -63,8 +66,15 @@ export function PersonDrawer({
 
   return (
     <aside
+      data-org-drawer
       aria-label={person.fullName}
-      className="absolute bottom-3 right-3 top-3 z-10 flex w-[300px] max-w-[calc(100%-1.5rem)] flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-lift print:hidden"
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') {
+          e.stopPropagation();
+          onClose();
+        }
+      }}
+      className="absolute bottom-3 right-3 top-3 z-10 flex w-[300px] max-w-[calc(100%-1.5rem)] cursor-auto select-text flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-lift print:hidden"
     >
       <div className="flex items-start gap-3 border-b border-border p-4">
         <span
@@ -74,7 +84,13 @@ export function PersonDrawer({
           {initials(person.fullName)}
         </span>
         <div className="min-w-0 flex-1">
-          <h2 className="text-sm font-semibold leading-snug text-foreground">{person.fullName}</h2>
+          <h2
+            ref={heading}
+            tabIndex={-1}
+            className="text-sm font-semibold leading-snug text-foreground focus:outline-none"
+          >
+            {person.fullName}
+          </h2>
           <p className="mt-0.5 text-xs text-muted-foreground">
             {[person.title, unit?.name].filter(Boolean).join(' · ') || <Dash />}
           </p>
