@@ -61,3 +61,21 @@ export function rebase(
   const b = after.boxes.get(id)!;
   return { anchor: id, scale: v.scale, sx: o.x + b.x * v.scale, sy: o.y + b.y * v.scale };
 }
+
+/**
+ * The default view: the whole chart width on screen (never above 100%, never below `min` — past that it starts at
+ * the left edge rather than cutting it off), centred when narrower than the viewport, anchored to `id` 12 px from
+ * the top. Null — `id` is not laid out or the viewport has no width yet.
+ */
+export function fitView(
+  layout: Boxes & { width: number },
+  id: string,
+  viewportW: number,
+  { min }: { min: number },
+): AnchoredView | null {
+  const b = layout.boxes.get(id);
+  if (!b || viewportW <= 0 || layout.width <= 0) return null;
+  const scale = Math.max(min, Math.min(1, Math.floor((viewportW / layout.width) * 100) / 100));
+  const ox = Math.max(0, (viewportW - layout.width * scale) / 2);
+  return { anchor: id, scale, sx: ox + b.x * scale, sy: 12 };
+}

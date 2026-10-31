@@ -26,11 +26,11 @@ import { MoveDialog, UnitDialog } from '../components/CardDialogs';
 import { ErrorNote, Loading, Notice, PageHeader } from '../components/parts';
 import { planDrop, type DropPlan } from './drop';
 import { buildOrgTree, collapsibleNodes, defaultCollapsed, visibleGraph, type NodeId, type OrgGraph } from './graph';
-import { layoutOrg, ORG_SIZES, type OrgLayout } from './layout';
+import { layoutOrg, type OrgLayout } from './layout';
 import { OrgNode, type DropState, type NodeHandlers } from './OrgNode';
 import { PersonDrawer } from './PersonDrawer';
 import { moveText, type Move, type Translate } from './text';
-import { origin, panBy, reanchor as reanchorView, rebase, zoomAround, type AnchoredView } from './view';
+import { fitView, origin, panBy, reanchor as reanchorView, rebase, zoomAround, type AnchoredView } from './view';
 import './org.css';
 
 /** Blocks with more people below than this start collapsed (the roots never do). */
@@ -38,6 +38,8 @@ const COLLAPSE_THRESHOLD = 15;
 const MIN_SCALE = 0.3;
 const MAX_SCALE = 2;
 const STEP = 0.1;
+/** The default view never shrinks below this to fit the width: smaller text is unreadable. */
+const FIT_MIN_SCALE = 0.6;
 /** Printable width of A4 landscape with 10 mm margins, in CSS px. */
 const PRINT_WIDTH = 1040;
 const DRAG_TYPE = 'application/x-people-org-node';
@@ -134,9 +136,10 @@ export function OrgChart() {
       ),
     [graph],
   );
+  // Until the user pans or zooms: the whole width on screen (no unit cut off at the left edge).
   const auto = useMemo<AnchoredView | null>(
-    () => (firstRoot ? { anchor: firstRoot, sx: viewportW / 2 - ORG_SIZES.nodeW / 2, sy: 12, scale: 1 } : null),
-    [firstRoot, viewportW],
+    () => (firstRoot ? fitView(layout, firstRoot, viewportW, { min: FIT_MIN_SCALE }) : null),
+    [firstRoot, layout, viewportW],
   );
   // A new layout (refetch, «collapse all») may drop the anchor block: re-anchor to its nearest visible ancestor
   // (or the main root) keeping the canvas where it was. Adjusting state while rendering, as React recommends for
@@ -367,7 +370,7 @@ export function OrgChart() {
               type="button"
               className="min-w-[3.25rem] text-center text-[13px] font-semibold tabular-nums text-foreground hover:underline"
               onClick={() => setViewState(null)}
-              title={t('people.org.zoomReset', 'Reset to 100%')}
+              title={t('people.org.zoomReset', 'Fit to width')}
             >
               {Math.round(scale * 100)}%
             </button>
