@@ -232,7 +232,7 @@ export function ExchangePage() {
           <p className="mb-3 text-sm text-muted-foreground">
             {t(
               'people.exchange.importText',
-              'Review the difference, then confirm. A missing row changes nothing; only «Дія» blocks or deletes.',
+              'Review the difference, then confirm. A missing row changes nothing; only «Дія» blocks or deletes. A row’s own «Підрозділ» wins over the manager’s unit; «Вищий підрозділ» only places units the import creates (existing units are not moved).',
             )}
           </p>
           <div className="space-y-3">
