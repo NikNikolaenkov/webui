@@ -148,7 +148,7 @@ export function TopBar() {
                       }}
                     >
                       <DynamicIcon name={layout.icon} className="mr-2 h-4 w-4" />
-                      {layout.name}
+                      {t(`layouts.${layout.name}`, layout.name)}
                     </DropdownMenuItem>
                   ))}
                 </DropdownMenuGroup>

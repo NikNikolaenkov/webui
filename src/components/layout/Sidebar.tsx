@@ -139,7 +139,7 @@ function SectionSwitcher({ layouts, activeSection }: { layouts: Layout[]; active
                 type="button"
                 variant="ghost"
                 size="icon"
-                aria-label={target.name}
+                aria-label={t(`layouts.${target.name}`, target.name)}
                 aria-pressed={isActive}
                 onClick={() => {
                   setActiveSection(target.name);
@@ -154,7 +154,7 @@ function SectionSwitcher({ layouts, activeSection }: { layouts: Layout[]; active
                 <DynamicIcon name={target.icon} className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="top">{target.name}</TooltipContent>
+            <TooltipContent side="top">{t(`layouts.${target.name}`, target.name)}</TooltipContent>
           </Tooltip>
         );
       })}

@@ -11,6 +11,8 @@ import { useAuthStore } from '@/stores/authStore';
 import { useSchemaStore } from '@/stores/schemaStore';
 import { useAccountStore } from '@/stores/accountStore';
 import { setLocale } from '@/i18n';
+import { loadSchemaDictionary } from '@/i18n/schema/load';
+import { translateSchema } from '@/i18n/schema/translate';
 
 export interface SessionInfo {
   accounts: Record<string, { name: string; isPersonal: boolean }>;
@@ -52,7 +54,8 @@ export async function initializeSession(signal?: AbortSignal): Promise<true> {
   useAuthStore
     .getState()
     .setSession(info.accounts, info.primaryAccountId, info.apiUrl, info.maxObjectsInGet, info.maxObjectsInSet);
-  useSchemaStore.getState().setSchema(schema);
+  const dict = await loadSchemaDictionary(account.locale);
+  useSchemaStore.getState().setSchema(dict ? translateSchema(schema, dict) : schema);
   useAccountStore.getState().setAccountInfo(account.permissions, account.edition, account.locale);
   setLocale(account.locale);
   return true;
