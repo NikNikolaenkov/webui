@@ -14,8 +14,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { peopleApi, type CreatePersonInput } from '../api';
+import { buildCustomPatch, cardFields, withDraft } from '../custom';
+import { useFields } from '../queries';
 import { emptyForm, formToPatch, personToForm, type Person, type PersonForm, type Unit } from '../model';
 import { Choice, Field, Rows } from './fields';
+import { CustomFieldInputs } from './CustomFields';
 import { describeError } from '../client';
 
 interface Props {
@@ -39,6 +42,18 @@ export function PersonFormDialog({ person, units, people, withHr, onClose, onSav
   const [hr, setHr] = useState({ birthday: '', phone: '', notes: '' });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Custom fields: those that concern the person's unit (the chosen one when creating, re-evaluated on change).
+  const fields = useFields().data ?? [];
+  const [workDrafts, setWorkDrafts] = useState<Record<string, string>>({});
+  const [hrDrafts, setHrDrafts] = useState<Record<string, string>>({});
+  const unitOfPerson = person ? person.unitId : unitId;
+  const workValues = person?.custom ?? {};
+  const workRows = cardFields(fields, 'work', unitOfPerson, units, workValues);
+  const hrRows = !person && withHr ? cardFields(fields, 'hr', unitOfPerson, units, {}) : [];
+  const setDraft =
+    (setter: typeof setWorkDrafts) =>
+    (id: string, draft: string | undefined): void =>
+      setter((d) => withDraft(d, id, draft));
   const set = <K extends keyof PersonForm>(key: K, value: PersonForm[K]) => setForm((f) => ({ ...f, [key]: value }));
 
   const submit = async (e: FormEvent) => {
@@ -47,18 +62,28 @@ export function PersonFormDialog({ person, units, people, withHr, onClose, onSav
     setError(null);
     try {
       const patch = formToPatch(form);
+      const work = buildCustomPatch(workRows, workDrafts, workValues);
+      const hrCustom = buildCustomPatch(hrRows, hrDrafts, {});
+      const bad = !work.ok ? work : !hrCustom.ok ? hrCustom : null;
+      if (bad) {
+        setError(t('people.fields.badValue', 'Field «{{label}}»: the value is not valid', { label: bad.label }));
+        return;
+      }
+      const custom = work.ok && Object.keys(work.patch).length ? { custom: work.patch } : {};
       if (person) {
-        onSaved(await peopleApi.updatePerson(person.cardId, patch));
+        onSaved(await peopleApi.updatePerson(person.cardId, { ...patch, ...custom }));
       } else {
         const input: CreatePersonInput = {
           ...(withAccount && login.trim() ? { account: { login: login.trim() } } : {}),
-          card: { ...patch, unitId, managerCardId },
+          card: { ...patch, ...custom, unitId, managerCardId },
         };
-        if (withHr && (hr.birthday || hr.phone.trim() || hr.notes.trim())) {
+        const hrExtra = hrCustom.ok && Object.keys(hrCustom.patch).length ? { custom: hrCustom.patch } : {};
+        if (withHr && (hr.birthday || hr.phone.trim() || hr.notes.trim() || hrExtra.custom)) {
           input.hrCard = {
             birthday: hr.birthday || null,
             personalPhones: hr.phone.trim() ? [hr.phone.trim()] : [],
             notes: hr.notes.trim() || null,
+            ...hrExtra,
           };
         }
         const created = await peopleApi.createPerson(input);
@@ -182,6 +207,22 @@ export function PersonFormDialog({ person, units, people, withHr, onClose, onSav
             onChange={(rows) => set('systems', rows)}
           />
 
+          {workRows.length > 0 && (
+            <div className="space-y-4 rounded-xl border border-border p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-dim">
+                {t('people.section.custom', 'Additional fields')}
+              </p>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <CustomFieldInputs
+                  rows={workRows}
+                  original={workValues}
+                  drafts={workDrafts}
+                  onDraft={setDraft(setWorkDrafts)}
+                />
+              </div>
+            </div>
+          )}
+
           {!person && withHr && (
             <div className="space-y-4 rounded-xl border border-border p-4">
               <p className="text-[11px] font-semibold uppercase tracking-wider text-dim">
@@ -214,6 +255,11 @@ export function PersonFormDialog({ person, units, people, withHr, onClose, onSav
                   <Textarea id={id} value={hr.notes} onChange={(e) => setHr({ ...hr, notes: e.target.value })} />
                 )}
               </Field>
+              {hrRows.length > 0 && (
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <CustomFieldInputs rows={hrRows} original={{}} drafts={hrDrafts} onDraft={setDraft(setHrDrafts)} />
+                </div>
+              )}
             </div>
           )}
 

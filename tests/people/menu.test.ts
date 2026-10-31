@@ -49,6 +49,14 @@ test('archive link only for hr/admin', () => {
   assert.ok(!links(section('support')).includes(PEOPLE_VIEWS.archive));
 });
 
+test('fields link only for hr/admin, right after import / export', () => {
+  assert.ok(links(section('hr')).includes(PEOPLE_VIEWS.fields));
+  assert.ok(links(section('admin')).includes(PEOPLE_VIEWS.fields));
+  assert.ok(!links(section('support')).includes(PEOPLE_VIEWS.fields));
+  const hr = links(section('hr'));
+  assert.equal(hr.indexOf(PEOPLE_VIEWS.fields), hr.indexOf(PEOPLE_VIEWS.exchange) + 1);
+});
+
 test('section goes before Account, the schema object is not mutated, labels come from the translator', () => {
   const original = schema();
   const s = withPeopleSection(original, 'hr', (key, fallback) => `uk:${key}:${fallback}`);

@@ -9,6 +9,7 @@
 // to JSContact. Pure module, tested with node --test.
 
 import type { PeopleRole } from './menu';
+import type { CustomValues } from './custom';
 
 export type Status = 'active' | 'blocked' | 'deleted' | 'archived';
 
@@ -28,6 +29,8 @@ export interface Person {
   accountEmail: string | null;
   /** True when the helper may act on the account (block, delete, …). */
   managed: boolean;
+  /** Work custom field values by field id (as stored; may include archived fields or ones outside the unit). */
+  custom: CustomValues;
 }
 
 export interface HrCard {
@@ -36,6 +39,8 @@ export interface HrCard {
   personalEmails: string[];
   personalPhones: string[];
   notes: string | null;
+  /** HR custom field values by field id. */
+  custom: CustomValues;
 }
 
 export interface Unit {
@@ -96,6 +101,8 @@ export interface WorkPatch {
   phones: { number: string; label?: string }[];
   online: { service: string; user: string }[];
   systems: Record<string, string>;
+  /** Only the custom values that changed (null clears); omitted when none. */
+  custom?: Record<string, unknown>;
 }
 
 export const emptyForm = (): PersonForm => ({

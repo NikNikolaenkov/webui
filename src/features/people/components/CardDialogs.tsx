@@ -19,9 +19,11 @@ import {
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { peopleApi } from '../api';
+import { buildCustomPatch, cardFields, withDraft, type FieldDef } from '../custom';
 import type { HrCard, Person, Unit } from '../model';
 import { moveError, type MoveTarget } from '../tree';
 import { Choice, Field, Rows } from './fields';
+import { CustomFieldInputs } from './CustomFields';
 import { describeError } from '../client';
 
 function FormDialog({
@@ -249,11 +251,18 @@ export function UnitDialog({
 export function HrDialog({
   cardId,
   hr,
+  fields,
+  unitId,
+  units,
   onClose,
   onDone,
 }: {
   cardId: string;
   hr: HrCard;
+  /** Definitions of the HR custom fields, the person's unit and all units (which fields concern them). */
+  fields: FieldDef[];
+  unitId: string | null;
+  units: Unit[];
   onClose: () => void;
   onDone: () => void;
 }) {
@@ -262,10 +271,18 @@ export function HrDialog({
   const [emails, setEmails] = useState(hr.personalEmails.map((value) => ({ value })));
   const [phones, setPhones] = useState(hr.personalPhones.map((value) => ({ value })));
   const [notes, setNotes] = useState(hr.notes ?? '');
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const rows = cardFields(fields, 'hr', unitId, units, hr.custom);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const submit = async () => {
+    const custom = buildCustomPatch(rows, drafts, hr.custom);
+    if (!custom.ok) {
+      return setError(
+        t('people.fields.badValue', 'Field «{{label}}»: the value is not valid', { label: custom.label }),
+      );
+    }
     setBusy(true);
     setError(null);
     try {
@@ -274,6 +291,7 @@ export function HrDialog({
         personalEmails: emails.map((e) => e.value.trim()).filter(Boolean),
         personalPhones: phones.map((p) => p.value.trim()).filter(Boolean),
         notes: notes.trim() || null,
+        ...(Object.keys(custom.patch).length ? { custom: custom.patch } : {}),
       });
       onDone();
     } catch (err) {
@@ -310,6 +328,12 @@ export function HrDialog({
       <Field label={t('people.field.notes', 'HR notes')}>
         {(id) => <Textarea id={id} value={notes} onChange={(e) => setNotes(e.target.value)} />}
       </Field>
+      <CustomFieldInputs
+        rows={rows}
+        original={hr.custom}
+        drafts={drafts}
+        onDraft={(id, draft) => setDrafts((d) => withDraft(d, id, draft))}
+      />
     </FormDialog>
   );
 }

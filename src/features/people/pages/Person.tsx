@@ -19,6 +19,7 @@ import {
   personPath,
   sectionPath,
   useAudit,
+  useFields,
   useHrCard,
   useLines,
   usePeople,
@@ -26,10 +27,12 @@ import {
   useRefreshPeople,
   useUnits,
 } from '../queries';
+import { cardFields } from '../custom';
 import { unitPath } from '../tree';
 import { formatDate } from '../styles';
 import { Choice } from '../components/fields';
 import { HrDialog, MoveDialog } from '../components/CardDialogs';
+import { CustomFieldRows } from '../components/CustomFields';
 import { LifecycleActions } from '../components/LifecycleActions';
 import { Dash, ErrorNote, KV, Loading, PageHeader, Section, StatusBadge } from '../components/parts';
 import { PersonFormDialog } from '../components/PersonFormDialog';
@@ -51,6 +54,7 @@ export function PersonPage({ cardId }: { cardId: string }) {
   const people = usePeople();
   const units = useUnits();
   const lines = useLines();
+  const fields = useFields();
   const audit = useAudit(cardId);
   // Support never requests the HR card (the helper would refuse anyway): no HR widget is rendered for it.
   const hr = useHrCard(cardId, shouldLoadHr(role));
@@ -63,6 +67,10 @@ export function PersonPage({ cardId }: { cardId: string }) {
   const p = person.data;
   const nameOf = useMemo(() => new Map((people.data ?? []).map((x) => [x.cardId, x])), [people.data]);
   const path = p ? unitPath(units.data ?? [], p.unitId) : [];
+  // Custom fields: work block for everyone, the HR block (own definitions) for HR and admins only.
+  const workFields = p ? cardFields(fields.data ?? [], 'work', p.unitId, units.data ?? [], p.custom ?? {}) : [];
+  const hrFields =
+    p && hr.data ? cardFields(fields.data ?? [], 'hr', p.unitId, units.data ?? [], hr.data.custom ?? {}) : [];
   const held = (lines.data ?? []).filter((l) => l.holderCardId === cardId);
   const free = (lines.data ?? []).filter((l) => !l.holderCardId);
 
@@ -231,6 +239,14 @@ export function PersonPage({ cardId }: { cardId: string }) {
             </Section>
           )}
 
+          {sections.includes('work') && workFields.length > 0 && (
+            <Section title={t('people.section.custom', 'Additional fields')}>
+              <dl>
+                <CustomFieldRows rows={workFields} />
+              </dl>
+            </Section>
+          )}
+
           {sections.includes('systems') && (
             <Section title={t('people.section.systems', 'Systems')}>
               {Object.keys(p.systems).length ? (
@@ -327,6 +343,7 @@ export function PersonPage({ cardId }: { cardId: string }) {
                       {hr.data.personalPhones.join(', ') || <Dash />}
                     </KV>
                     <KV label={t('people.field.notes', 'HR notes')}>{hr.data.notes ?? <Dash />}</KV>
+                    <CustomFieldRows rows={hrFields} />
                   </dl>
                 )
               )}
@@ -378,7 +395,15 @@ export function PersonPage({ cardId }: { cardId: string }) {
         />
       )}
       {dialog === 'hr' && hr.data && (
-        <HrDialog cardId={cardId} hr={hr.data} onClose={() => setDialog(null)} onDone={done} />
+        <HrDialog
+          cardId={cardId}
+          hr={hr.data}
+          fields={fields.data ?? []}
+          unitId={p.unitId}
+          units={units.data ?? []}
+          onClose={() => setDialog(null)}
+          onDone={done}
+        />
       )}
       {releasing && (
         <ConfirmDialog

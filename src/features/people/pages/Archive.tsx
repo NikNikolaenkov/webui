@@ -13,7 +13,9 @@ import { cn } from '@/lib/utils';
 import { usePeopleAccess } from '../access';
 import { isHrRole } from '../menu';
 import { filterPeople, type ArchivedPerson } from '../model';
-import { personPath, useArchive, usePeople, useUnits } from '../queries';
+import { personPath, useArchive, useFields, usePeople, useUnits } from '../queries';
+import { storedFields, type FieldDef } from '../custom';
+import { StoredFieldRows } from '../components/CustomFields';
 import { formatDate } from '../styles';
 import { Dash, ErrorNote, KV, Loading, Notice, PageHeader, Section, StatusBadge } from '../components/parts';
 
@@ -25,6 +27,7 @@ export function ArchivePage() {
   const archive = useArchive(allowed);
   const people = usePeople();
   const units = useUnits();
+  const fields = useFields();
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState<string | null>(null);
   const unitName = useMemo(() => new Map((units.data ?? []).map((u) => [u.id, u.name])), [units.data]);
@@ -86,6 +89,7 @@ export function ArchivePage() {
                   key={p.cardId}
                   person={p}
                   unit={p.unitId ? unitName.get(p.unitId) : undefined}
+                  fields={fields.data ?? []}
                   open={open === p.cardId}
                   onToggle={() => setOpen(open === p.cardId ? null : p.cardId)}
                 />
@@ -101,11 +105,13 @@ export function ArchivePage() {
 function ArchivedRow({
   person: p,
   unit,
+  fields,
   open,
   onToggle,
 }: {
   person: ArchivedPerson;
   unit?: string;
+  fields: FieldDef[];
   open: boolean;
   onToggle: () => void;
 }) {
@@ -146,6 +152,8 @@ function ArchivedRow({
               {p.hr?.personalPhones.join(', ') || <Dash />}
             </KV>
             <KV label={t('people.field.notes', 'HR notes')}>{p.hr?.notes ?? <Dash />}</KV>
+            <StoredFieldRows rows={storedFields(fields, 'work', p.custom ?? {})} />
+            <StoredFieldRows rows={storedFields(fields, 'hr', p.hr?.custom ?? {})} />
           </dl>
           <div>
             <h3 className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-dim">

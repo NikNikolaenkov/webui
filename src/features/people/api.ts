@@ -15,6 +15,7 @@ import { refreshAccessToken } from '@/services/api';
 import { useAuthStore } from '@/stores/authStore';
 import { helperRequest, PeopleApiError, type RequestOptions, type Transport } from './client';
 import { resolveHelperUrl } from './config';
+import type { FieldDef } from './custom';
 import type { LifecycleAction, ArchivedPerson, AuditEntry, HrCard, Line, Person, Unit, WorkPatch } from './model';
 import type { MoveTarget } from './tree';
 import type { ExportResult, ImportPreview, ImportResult, MirrorReport, MirrorStatus, SheetsStatus } from './exchange';
@@ -69,8 +70,19 @@ export interface LifecycleResult {
 export interface CreatePersonInput {
   account?: { login: string };
   card: WorkPatch & { unitId?: string | null; managerCardId?: string | null };
-  hrCard?: Partial<Omit<HrCard, 'cardId'>>;
+  hrCard?: Partial<Omit<HrCard, 'cardId' | 'custom'>> & { custom?: Record<string, unknown> };
 }
+
+export interface FieldInput {
+  label: string;
+  type: FieldDef['type'];
+  visibility: FieldDef['visibility'];
+  options?: string[];
+  unitIds?: string[];
+  hint?: string | null;
+  order?: number;
+}
+export type FieldPatch = Partial<Pick<FieldDef, 'label' | 'hint' | 'options' | 'unitIds' | 'order' | 'archived'>>;
 
 export const peopleApi = {
   me: (signal?: AbortSignal) => peopleFetch<{ email: string; role: PeopleRole | null }>('/me', { signal }),
@@ -84,7 +96,7 @@ export const peopleApi = {
   movePerson: (id: string, target: MoveTarget) =>
     peopleFetch<Person>(`/people/${enc(id)}/move`, { method: 'POST', body: target }),
   getHr: (id: string, signal?: AbortSignal) => peopleFetch<HrCard>(`/people/${enc(id)}/hr`, { signal }),
-  putHr: (id: string, hr: Omit<HrCard, 'cardId'>) =>
+  putHr: (id: string, hr: Omit<HrCard, 'cardId' | 'custom'> & { custom?: Record<string, unknown> }) =>
     peopleFetch<HrCard>(`/people/${enc(id)}/hr`, { method: 'PUT', body: hr }),
   lifecycle: (id: string, action: LifecycleAction) =>
     peopleFetch<LifecycleResult>(`/people/${enc(id)}/${LIFECYCLE_PATH[action]}`, { method: 'POST' }),
@@ -105,6 +117,13 @@ export const peopleApi = {
   assignLine: (lineId: string, cardId: string) =>
     peopleFetch<Line>(`/lines/${enc(lineId)}/assign`, { method: 'POST', body: { cardId } }),
   releaseLine: (lineId: string) => peopleFetch<Line>(`/lines/${enc(lineId)}/release`, { method: 'POST' }),
+
+  // Custom field definitions (read: every role, support gets work fields only; write: HR/admin). Archived included.
+  listFields: (signal?: AbortSignal) =>
+    peopleFetch<{ fields: FieldDef[] }>('/fields?archived=1', { signal }).then((r) => r.fields),
+  createField: (input: FieldInput) => peopleFetch<FieldDef>('/fields', { method: 'POST', body: input }),
+  updateField: (id: string, patch: FieldPatch) =>
+    peopleFetch<FieldDef>(`/fields/${enc(id)}`, { method: 'PATCH', body: patch }),
 
   audit: (entityId: string, signal?: AbortSignal) =>
     peopleFetch<{ entries: AuditEntry[] }>(`/audit?entityId=${enc(entityId)}&limit=200`, { signal }).then(

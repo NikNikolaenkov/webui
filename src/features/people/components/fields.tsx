@@ -43,6 +43,7 @@ export function Choice({
   placeholder,
   variant,
   ariaLabel,
+  disabled,
 }: {
   id?: string;
   value: string | null;
@@ -52,10 +53,15 @@ export function Choice({
   placeholder?: string;
   variant?: 'field' | 'pill';
   ariaLabel?: string;
+  disabled?: boolean;
 }) {
   return (
     // Always controlled: '' shows the placeholder (Radix), NONE the explicit empty choice.
-    <Select value={value ?? (noneLabel ? NONE : '')} onValueChange={(v) => onChange(v === NONE ? null : v)}>
+    <Select
+      value={value ?? (noneLabel ? NONE : '')}
+      onValueChange={(v) => onChange(v === NONE ? null : v)}
+      disabled={disabled}
+    >
       <SelectTrigger id={id} variant={variant} aria-label={ariaLabel}>
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>

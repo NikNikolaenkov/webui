@@ -26,6 +26,7 @@ export const PEOPLE_VIEWS = {
   archive: 'CustomComponent/PeopleArchive',
   discrepancies: 'CustomComponent/PeopleDiscrepancies',
   exchange: 'CustomComponent/PeopleExchange',
+  fields: 'CustomComponent/PeopleFields',
 } as const;
 
 const ROLES: readonly PeopleRole[] = ['hr', 'support', 'admin'];
@@ -34,7 +35,7 @@ export function parseRole(value: unknown): PeopleRole | null {
   return typeof value === 'string' && (ROLES as readonly string[]).includes(value) ? (value as PeopleRole) : null;
 }
 
-/** HR and admins see personal fields and the archive; support never does. */
+/** HR and admins see personal fields, the archive and the custom field definitions; support never does. */
 export function isHrRole(role: PeopleRole | null | undefined): boolean {
   return role === 'hr' || role === 'admin';
 }
@@ -64,6 +65,7 @@ export function peopleLayout(role: PeopleRole | 'misconfigured', label: Label = 
       ...(isHrRole(role) ? [link('archive', 'Archive', 'archive', PEOPLE_VIEWS.archive)] : []),
       link('discrepancies', 'Discrepancies', 'triangle-alert', PEOPLE_VIEWS.discrepancies),
       link('exchange', 'Import / export', 'upload', PEOPLE_VIEWS.exchange),
+      ...(isHrRole(role) ? [link('fields', 'Fields', 'sliders-horizontal', PEOPLE_VIEWS.fields)] : []),
     ],
   };
 }

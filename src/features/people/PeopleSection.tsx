@@ -14,6 +14,7 @@ import { ErrorNote, Notice } from './components/parts';
 import { ArchivePage } from './pages/Archive';
 import { DiscrepanciesPage } from './pages/Discrepancies';
 import { ExchangePage } from './pages/Exchange';
+import { FieldsPage } from './pages/Fields';
 import { LinesPage } from './pages/Lines';
 import { OrgPage } from './pages/Org';
 import { PeoplePage } from './pages/People';
@@ -61,6 +62,8 @@ export function PeopleSection({ component }: { component: string }) {
       return <DiscrepanciesPage />;
     case 'PeopleExchange':
       return <ExchangePage />;
+    case 'PeopleFields':
+      return <FieldsPage />;
     default:
       return <Notice>{t('errors.unknownComponent', 'Unknown component: {{name}}', { name: component })}</Notice>;
   }

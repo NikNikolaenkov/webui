@@ -17,6 +17,7 @@ export const peopleKeys = {
   person: (id: string) => [ROOT, 'person', id] as const,
   hr: (id: string) => [ROOT, 'hr', id] as const,
   units: [ROOT, 'units'] as const,
+  fields: [ROOT, 'fields'] as const,
   lines: [ROOT, 'lines'] as const,
   audit: (id: string) => [ROOT, 'audit', id] as const,
   archive: [ROOT, 'archive'] as const,
@@ -44,6 +45,9 @@ export const useHrCard = (id: string, enabled: boolean) =>
   });
 export const useUnits = () =>
   useQuery({ ...base, queryKey: peopleKeys.units, queryFn: ({ signal }) => peopleApi.listUnits(signal) });
+/** All definitions the caller may see, archived too (a card labels archived fields that still hold a value). */
+export const useFields = () =>
+  useQuery({ ...base, queryKey: peopleKeys.fields, queryFn: ({ signal }) => peopleApi.listFields(signal) });
 export const useLines = () =>
   useQuery({ ...base, queryKey: peopleKeys.lines, queryFn: ({ signal }) => peopleApi.listLines(signal) });
 export const useAudit = (id: string) =>
