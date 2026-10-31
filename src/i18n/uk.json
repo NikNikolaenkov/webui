@@ -242,7 +242,7 @@
   },
   "form": {
     "correctErrorsBelow": "Виправте помилки нижче.",
-    "createTitle": "Створити: {{name}}",
+    "createTitle": "Створення ({{name}})",
     "createdServerGenerated": "Наведені значення згенеровано сервером. Збережіть їх зараз, пізніше їх може бути неможливо отримати.",
     "createdSuccess": "Успішно створено",
     "deleteDescription": "Цю дію не можна скасувати. Об'єкт ({{name}}) буде видалено остаточно.",
@@ -347,7 +347,7 @@
     "confirmItemDescription": "Застосувати «{{action}}» до {{label}}?",
     "confirmMassDescription": "Застосувати «{{action}}» до вибраного ({{count}}): {{name}}?",
     "confirmTitle": "Підтвердження дії",
-    "create": "Створити: {{name}}",
+    "create": "Створити ({{name}})",
     "delete": "Видалити",
     "deleteAll": "Видалити все",
     "deleteAllMatchingDescription": "Ви впевнені, що хочете видалити ВСІ ({{name}}), що відповідають поточним фільтрам? Цю дію не можна скасувати.",

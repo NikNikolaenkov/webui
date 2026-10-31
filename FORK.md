@@ -17,8 +17,8 @@ Upstream: [stalwartlabs/webui](https://github.com/stalwartlabs/webui). License: 
 | `src/i18n/schema/load.ts` | loads `schema/uk.json` lazily for accounts with locale `uk`/`uk-UA` |
 | `src/i18n/schema/uk.json` | the schema dictionary: path → `{en, uk}` |
 | `src/i18n/index.ts` | registers `uk`, default language `uk` (the account locale switches it after sign-in) |
-| `src/data/session.ts` | translates the schema before it reaches the store |
-| `src/components/layout/TopBar.tsx`, `Sidebar.tsx` | section names (Management/Settings/Account are route ids) shown through `t('layouts.<name>')` |
+| `src/data/session.ts` | sets the account language first, then translates the schema before it reaches the store |
+| `src/components/layout/TopBar.tsx`, `Sidebar.tsx`, `src/stores/schemaStore.ts` (search breadcrumbs) | section names (Management/Settings/Account are route ids) shown through `t('layouts.<name>')` |
 | `tests/i18n/*.test.ts` | `node --experimental-strip-types --test tests/i18n/*.test.ts` |
 | `tools/i18n/schema-sync.ts`, `ui-sync.ts` | coverage reports; `schema-sync --write` adds new schema strings to the dictionary |
 | `docs/i18n/glossary.md` | terminology (main copy; NikNikolaenkov/webmail follows it) |

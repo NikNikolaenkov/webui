@@ -7,6 +7,7 @@
 import { create } from 'zustand';
 import { layoutViewFor } from '@/lib/layout';
 import type { Schema, LayoutSubItem } from '@/types/schema';
+import i18n from '@/i18n';
 
 export interface SearchIndexEntry {
   text: string;
@@ -53,6 +54,7 @@ function walkLayouts(schema: Schema): { viewToSection: Record<string, string>; l
 
   for (const layout of schema.layouts) {
     const sectionName = layout.name;
+    const sectionLabel = i18n.t(`layouts.${sectionName}`, sectionName);
     for (const item of layout.items) {
       if ('link' in item) {
         if (!(item.link.viewName in viewToSection)) {
@@ -63,11 +65,11 @@ function walkLayouts(schema: Schema): { viewToSection: Record<string, string>; l
           type: 'link',
           viewName: item.link.viewName,
           section: sectionName,
-          breadcrumb: `${sectionName} > ${item.link.name}`,
+          breadcrumb: `${sectionLabel} > ${item.link.name}`,
           icon: item.link.icon,
         });
       } else if ('container' in item) {
-        visit(item.container.items, sectionName, `${sectionName} > ${item.container.name}`);
+        visit(item.container.items, sectionName, `${sectionLabel} > ${item.container.name}`);
       }
     }
   }

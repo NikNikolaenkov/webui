@@ -54,10 +54,10 @@ export async function initializeSession(signal?: AbortSignal): Promise<true> {
   useAuthStore
     .getState()
     .setSession(info.accounts, info.primaryAccountId, info.apiUrl, info.maxObjectsInGet, info.maxObjectsInSet);
+  setLocale(account.locale);
   const dict = await loadSchemaDictionary(account.locale);
   useSchemaStore.getState().setSchema(dict ? translateSchema(schema, dict) : schema);
   useAccountStore.getState().setAccountInfo(account.permissions, account.edition, account.locale);
-  setLocale(account.locale);
   return true;
 }
 
