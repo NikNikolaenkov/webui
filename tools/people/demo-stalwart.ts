@@ -9,8 +9,9 @@
 // (people-helper: PEOPLE_HELPER_DEMO=1 npm run demo). No data, no secrets; any bearer is accepted.
 //
 //   node --experimental-strip-types tools/people/demo-stalwart.ts            (port 8090)
-//   VITE_API_BASE_URL=http://localhost:8090 VITE_PEOPLE_HELPER_URL=http://localhost:3201 \
-//     VITE_ACCESS_TOKEN=demo-hr npx vite                                     (demo-hr | demo-support | demo-admin | demo-none)
+//   VITE_API_BASE_URL=http://127.0.0.1:8090 VITE_PEOPLE_HELPER_URL=http://127.0.0.1:3201 \
+//     VITE_PEOPLE_UI_ORIGINS=http://localhost:5173 VITE_ACCESS_TOKEN=demo-hr npx vite
+//   (tokens: demo-hr | demo-support | demo-admin | demo-none)
 
 import { createServer } from 'node:http';
 

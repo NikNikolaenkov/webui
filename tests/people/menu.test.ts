@@ -66,3 +66,10 @@ test('section goes before Account, the schema object is not mutated, labels come
     ['Management', PEOPLE_SECTION],
   );
 });
+
+test('a helper policy refusal shows the section with a single entry (configuration error is never silent)', () => {
+  const s = withPeopleSection(schema(), 'misconfigured');
+  const people = s.layouts.find((l) => l.name === PEOPLE_SECTION);
+  assert.ok(people);
+  assert.deepEqual(links(people), [PEOPLE_VIEWS.people]);
+});

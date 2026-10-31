@@ -9,7 +9,8 @@
 
 import { useTranslation } from 'react-i18next';
 import { usePeopleAccess } from './access';
-import { Notice } from './components/parts';
+import { describeError, PeopleApiError } from './client';
+import { ErrorNote, Notice } from './components/parts';
 import { ArchivePage } from './pages/Archive';
 import { DiscrepanciesPage } from './pages/Discrepancies';
 import { ExchangePage } from './pages/Exchange';
@@ -18,12 +19,32 @@ import { OrgPage } from './pages/Org';
 import { PeoplePage } from './pages/People';
 import { PersonPage } from './pages/Person';
 
+/** A malformed %-sequence in the URL must not crash the section. */
+function decodeId(raw: string): string | null {
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return null;
+  }
+}
+
 export function PeopleSection({ component }: { component: string }) {
   const { t } = useTranslation();
   const role = usePeopleAccess((s) => s.role);
+  const configError = usePeopleAccess((s) => s.configError);
   const [name, ...rest] = component.split('/');
-  const id = rest.length ? decodeURIComponent(rest.join('/')) : null;
+  const id = rest.length ? decodeId(rest.join('/')) : null;
 
+  if (configError) {
+    return (
+      <div className="mt-3">
+        <ErrorNote error={new PeopleApiError(403, configError, '')} />
+      </div>
+    );
+  }
+  if (rest.length && id === null) {
+    return <Notice>{describeError(new PeopleApiError(404, 'not_found', ''), t)}</Notice>;
+  }
   if (!role)
     return <Notice>{t('people.noRole', 'The «Personnel» section is for HR, support and administrators.')}</Notice>;
 

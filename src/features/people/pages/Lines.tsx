@@ -21,6 +21,7 @@ import { personPath, useLines, usePeople, useRefreshPeople } from '../queries';
 import { BODY_CELL, HEADER_CELL, formatDate } from '../styles';
 import { Choice, Field } from '../components/fields';
 import { ErrorNote, Loading, PageHeader } from '../components/parts';
+import { describeError } from '../client';
 
 type Filter = 'all' | 'free' | 'held';
 
@@ -56,7 +57,7 @@ export function LinesPage() {
     try {
       await fn();
     } catch (err) {
-      toast({ variant: 'destructive', title, description: (err as Error).message });
+      toast({ variant: 'destructive', title, description: describeError(err, t) });
     } finally {
       void refresh();
     }
@@ -278,7 +279,7 @@ function AssignDialog({
       await peopleApi.assignLine(line.id, cardId);
       onDone();
     } catch (err) {
-      setError((err as Error).message);
+      setError(describeError(err, t));
     } finally {
       setBusy(false);
     }
@@ -334,7 +335,7 @@ function CreateLineDialog({ onClose, onDone }: { onClose: () => void; onDone: ()
       await peopleApi.createLine({ number: number.trim(), ...(label.trim() ? { label: label.trim() } : {}) });
       onDone();
     } catch (err) {
-      setError((err as Error).message);
+      setError(describeError(err, t));
     } finally {
       setBusy(false);
     }

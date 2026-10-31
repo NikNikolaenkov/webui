@@ -112,8 +112,10 @@ jobs:
       - name: Build webui.zip
         if: steps.merge.outputs.skip != 'true'
         env:
-          # «Персонал» calls the people helper with the admin's own Stalwart token (not a secret).
-          VITE_PEOPLE_HELPER_URL: https://people.servgc.space
+          # «Персонал»: repository variables (not secrets). The section and every call with the admin's Stalwart
+          # token exist only on the admin UIs listed in PEOPLE_UI_ORIGINS; empty = no section.
+          VITE_PEOPLE_HELPER_URL: ${{ vars.PEOPLE_HELPER_URL }}
+          VITE_PEOPLE_UI_ORIGINS: ${{ vars.PEOPLE_UI_ORIGINS }}
         run: |
           npm run build
           (cd dist && zip -qr ../webui.zip .)

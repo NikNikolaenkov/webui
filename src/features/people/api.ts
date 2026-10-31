@@ -4,89 +4,50 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-// Client of the people helper's REST API (${VITE_PEOPLE_HELPER_URL}/api/v1). Every call carries the admin UI's own
-// Stalwart access token; the helper verifies it (Origin allow-list + Stalwart introspection) and applies the
-// person's role. «Персонал» reads and writes only through here: no direct JMAP writes to the registry's cards.
-// Passwords in responses (unblock, restore, reset-password, create) are returned once with no-store; callers show
-// them once and keep them only in component state.
+// Client of the people helper's REST API (${VITE_PEOPLE_HELPER_URL}/api/v1), bound to the admin UI's token store.
+// Every call carries the admin UI's own Stalwart access token; the helper verifies it (Origin allow-list + Stalwart
+// introspection) and applies the person's role. «Персонал» reads and writes only through here: no direct JMAP
+// writes to the registry's cards. Requests go out only from the admin UIs named in VITE_PEOPLE_UI_ORIGINS
+// (config.ts). Passwords in responses (unblock, restore, reset-password, create) are returned once with no-store;
+// callers show them once and keep them only in component state.
 
 import { refreshAccessToken } from '@/services/api';
 import { useAuthStore } from '@/stores/authStore';
+import { helperRequest, PeopleApiError, type RequestOptions, type Transport } from './client';
+import { resolveHelperUrl } from './config';
 import type { LifecycleAction, ArchivedPerson, AuditEntry, HrCard, Line, Person, Unit, WorkPatch } from './model';
 import type { MoveTarget } from './tree';
 import type { PeopleRole } from './menu';
 
-/** Build-time setting (not a secret); production: https://people.servgc.space. Empty = section off. */
+export { PeopleApiError } from './client';
+
+/**
+ * Build-time settings (not secrets): VITE_PEOPLE_HELPER_URL and VITE_PEOPLE_UI_ORIGINS. Null — section off, no
+ * request — unless this page's origin is one of the configured admin UIs and the helper URL is https.
+ */
 export function helperUrl(): string | null {
-  const url = import.meta.env.VITE_PEOPLE_HELPER_URL as string | undefined;
-  return url ? url.replace(/\/+$/, '') : null;
+  return resolveHelperUrl(
+    {
+      helperUrl: import.meta.env.VITE_PEOPLE_HELPER_URL as string | undefined,
+      uiOrigins: import.meta.env.VITE_PEOPLE_UI_ORIGINS as string | undefined,
+    },
+    window.location.origin,
+  );
 }
 
-export class PeopleApiError extends Error {
-  readonly status: number;
-  readonly code: string;
-  constructor(status: number, code: string, message: string) {
-    super(message);
-    this.name = 'PeopleApiError';
-    this.status = status;
-    this.code = code;
-  }
-}
+const transport: Transport = {
+  fetch: (url, init) => fetch(url, init),
+  token: () => useAuthStore.getState().accessToken,
+  canRefresh: () => Boolean(useAuthStore.getState().refreshToken),
+  refresh: () => refreshAccessToken(),
+};
 
-interface Init {
-  method?: 'GET' | 'POST' | 'PUT' | 'PATCH';
-  body?: unknown;
-  signal?: AbortSignal;
-}
-
-async function send(base: string, path: string, init: Init, token: string | null): Promise<Response> {
-  const headers = new Headers();
-  if (token) headers.set('Authorization', `Bearer ${token}`);
-  if (init.body !== undefined) headers.set('Content-Type', 'application/json');
-  try {
-    return await fetch(`${base}/api/v1${path}`, {
-      method: init.method ?? 'GET',
-      headers,
-      body: init.body === undefined ? undefined : JSON.stringify(init.body),
-      signal: init.signal,
-      cache: 'no-store',
-      credentials: 'omit',
-    });
-  } catch (err) {
-    if (err instanceof DOMException && err.name === 'AbortError') throw err;
-    throw new PeopleApiError(0, 'network', String(err instanceof Error ? err.message : err));
-  }
-}
-
-export async function peopleFetch<T>(path: string, init: Init = {}): Promise<T> {
+export async function peopleFetch<T>(path: string, init: RequestOptions = {}): Promise<T> {
   const base = helperUrl();
-  if (!base) throw new PeopleApiError(0, 'not_configured', 'VITE_PEOPLE_HELPER_URL is not set');
+  if (!base) throw new PeopleApiError(0, 'not_configured', '');
   const auth = useAuthStore.getState();
   if (auth.refreshToken && auth.isTokenExpiringSoon()) await refreshAccessToken().catch(() => undefined);
-
-  const token = useAuthStore.getState().accessToken;
-  let res = await send(base, path, init, token);
-  if (res.status === 401 && useAuthStore.getState().refreshToken) {
-    // The token may have just expired: refresh once and retry (the refresh is shared with the rest of the UI).
-    await refreshAccessToken().catch(() => undefined);
-    const next = useAuthStore.getState().accessToken;
-    if (next && next !== token) res = await send(base, path, init, next);
-  }
-
-  const text = await res.text();
-  let body: unknown = null;
-  if (text) {
-    try {
-      body = JSON.parse(text);
-    } catch {
-      body = null;
-    }
-  }
-  if (!res.ok) {
-    const e = (body as { error?: { code?: string; message?: string } } | null)?.error;
-    throw new PeopleApiError(res.status, e?.code ?? 'http', e?.message ?? `HTTP ${res.status}`);
-  }
-  return body as T;
+  return helperRequest<T>(base, path, init, transport);
 }
 
 const enc = encodeURIComponent;

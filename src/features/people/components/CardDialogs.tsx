@@ -22,6 +22,7 @@ import { peopleApi } from '../api';
 import type { HrCard, Person, Unit } from '../model';
 import { moveError, type MoveTarget } from '../tree';
 import { Choice, Field, Rows } from './fields';
+import { describeError } from '../client';
 
 function FormDialog({
   title,
@@ -74,8 +75,6 @@ function FormDialog({
   );
 }
 
-const message = (err: unknown) => (err instanceof Error ? err.message : String(err));
-
 /** Move a person onto a unit (under its head) or under another person; cycles are refused before the helper. */
 export function MoveDialog({
   person,
@@ -115,7 +114,7 @@ export function MoveDialog({
       await peopleApi.movePerson(person.cardId, to);
       onDone();
     } catch (err) {
-      setError(message(err));
+      setError(describeError(err, t));
     } finally {
       setBusy(false);
     }
@@ -197,7 +196,7 @@ export function HrDialog({
       });
       onDone();
     } catch (err) {
-      setError(message(err));
+      setError(describeError(err, t));
     } finally {
       setBusy(false);
     }

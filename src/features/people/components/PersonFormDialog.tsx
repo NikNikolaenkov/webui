@@ -16,6 +16,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { peopleApi, type CreatePersonInput } from '../api';
 import { emptyForm, formToPatch, personToForm, type Person, type PersonForm, type Unit } from '../model';
 import { Choice, Field, Rows } from './fields';
+import { describeError } from '../client';
 
 interface Props {
   /** Edit this person, or create a new one when null. */
@@ -64,7 +65,7 @@ export function PersonFormDialog({ person, units, people, withHr, onClose, onSav
         onSaved(created.person, created.password);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(describeError(err, t));
     } finally {
       setBusy(false);
     }

@@ -15,6 +15,7 @@ import { lifecycleActions, RETURNS_PASSWORD, type LifecycleAction, type Person }
 import { useRefreshPeople } from '../queries';
 import { formatDate } from '../styles';
 import { PasswordDialog } from './PasswordDialog';
+import { describeError } from '../client';
 
 const ICONS = { block: Ban, unblock: Unlock, delete: Trash2, restore: RotateCcw, resetPassword: KeyRound };
 
@@ -85,7 +86,7 @@ export function LifecycleActions({ person }: { person: Person }) {
       toast({
         variant: 'destructive',
         title: text[action].label,
-        description: err instanceof Error ? err.message : String(err),
+        description: describeError(err, t),
       });
     } finally {
       void refresh();

@@ -33,6 +33,7 @@ import { HrDialog, MoveDialog } from '../components/CardDialogs';
 import { LifecycleActions } from '../components/LifecycleActions';
 import { Dash, ErrorNote, KV, Loading, PageHeader, Section, StatusBadge } from '../components/parts';
 import { PersonFormDialog } from '../components/PersonFormDialog';
+import { describeError, PeopleApiError } from '../client';
 
 function initials(name: string) {
   return name
@@ -65,9 +66,17 @@ export function PersonPage({ cardId }: { cardId: string }) {
   const held = (lines.data ?? []).filter((l) => l.holderCardId === cardId);
   const free = (lines.data ?? []).filter((l) => !l.holderCardId);
 
-  if (person.isLoading) return <Loading />;
-  if (person.error || !p)
-    return <ErrorNote error={person.error ?? 'Not found'} onRetry={() => void person.refetch()} />;
+  // The card stays mounted while it has data, also when a refetch fails: the lifecycle buttons (and a password just
+  // returned by the helper, shown once in their dialog) must not be unmounted by a transient error.
+  if (!p) {
+    if (person.isLoading) return <Loading />;
+    return (
+      <ErrorNote
+        error={person.error ?? new PeopleApiError(404, 'not_found', '')}
+        onRetry={() => void person.refetch()}
+      />
+    );
+  }
 
   const done = () => {
     setDialog(null);
@@ -79,7 +88,7 @@ export function PersonPage({ cardId }: { cardId: string }) {
       await peopleApi.assignLine(lineToAssign, cardId);
       setLineToAssign(null);
     } catch (err) {
-      toast({ variant: 'destructive', title: t('people.lines.assign', 'Assign'), description: (err as Error).message });
+      toast({ variant: 'destructive', title: t('people.lines.assign', 'Assign'), description: describeError(err, t) });
     } finally {
       void refresh();
     }
@@ -91,7 +100,7 @@ export function PersonPage({ cardId }: { cardId: string }) {
       toast({
         variant: 'destructive',
         title: t('people.lines.release', 'Release'),
-        description: (err as Error).message,
+        description: describeError(err, t),
       });
     } finally {
       void refresh();
@@ -138,6 +147,8 @@ export function PersonPage({ cardId }: { cardId: string }) {
           </>
         }
       />
+
+      {person.error && <ErrorNote error={person.error} onRetry={() => void person.refetch()} />}
 
       <div className="grid gap-3.5 lg:grid-cols-2">
         <div className="space-y-3.5">

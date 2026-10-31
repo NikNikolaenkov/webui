@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { Status } from '../model';
+import { describeError } from '../client';
 
 export function PageHeader({
   title,
@@ -98,7 +99,7 @@ export function ErrorNote({ error, onRetry }: { error: unknown; onRetry?: () => 
   const { t } = useTranslation();
   return (
     <div role="alert" className="rounded-xl bg-destructive-soft p-4 text-sm text-destructive">
-      <p>{error instanceof Error ? error.message : String(error)}</p>
+      <p>{describeError(error, t)}</p>
       {onRetry && (
         <Button size="sm" variant="outline" className="mt-2" onClick={onRetry}>
           {t('common.retry', 'Retry')}

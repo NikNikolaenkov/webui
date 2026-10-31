@@ -139,6 +139,9 @@ function ArchivedRow({
             <KV label={t('people.field.birthday', 'Date of birth')}>
               {p.hr?.birthday ? formatDate(p.hr.birthday) : <Dash />}
             </KV>
+            <KV label={t('people.field.personalEmails', 'Personal emails')}>
+              {p.hr?.personalEmails.join(', ') || <Dash />}
+            </KV>
             <KV label={t('people.field.personalPhones', 'Personal phones')}>
               {p.hr?.personalPhones.join(', ') || <Dash />}
             </KV>

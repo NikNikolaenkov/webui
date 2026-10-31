@@ -20,12 +20,12 @@ Upstream: [stalwartlabs/webui](https://github.com/stalwartlabs/webui). License: 
 | `src/data/session.ts` | sets the account language first, then translates the schema before it reaches the store |
 | `src/components/layout/TopBar.tsx`, `Sidebar.tsx`, `src/stores/schemaStore.ts` (search breadcrumbs) | section names (Management/Settings/Account are route ids) shown through `t('layouts.<name>')` |
 | `tests/**/*.test.ts` | `node --experimental-strip-types --test "tests/**/*.test.ts"` |
-| `src/features/people/*` | section «Персонал» (people, card, phone lines, archive; org chart, discrepancies, import/export stubs). Reads and writes only through the people helper REST API (`${VITE_PEOPLE_HELPER_URL}/api/v1`) with the admin's own Stalwart bearer; shown only when `GET /api/v1/me` returns a role (hr, support, admin) |
+| `src/features/people/*` | section «Персонал» (people, card, phone lines, archive; org chart, discrepancies, import/export stubs). Reads and writes only through the people helper REST API (`${VITE_PEOPLE_HELPER_URL}/api/v1`, https only, loopback for local checks) with the admin's own Stalwart bearer — and only when the page's origin is in `VITE_PEOPLE_UI_ORIGINS` (other installations of this public release send nothing); shown when `GET /api/v1/me` returns a role (hr, support, admin); a helper policy refusal (403 `origin_not_allowed` / `client_not_allowed`) shows a configuration error in the section |
 | `src/data/session.ts` (again), `src/components/layout/MainContent.tsx` | upstream touch points of «Персонал»: the role is fetched next to the schema and the section added to the layouts; `CustomComponent/People*` rendered by `PeopleSection` |
 | `tools/people/demo-stalwart.ts` | local check of «Персонал»: stand-in for the three Stalwart endpoints the UI loads, used with the helper's demo mode (see the file header) |
 | `tools/i18n/schema-sync.ts`, `ui-sync.ts` | coverage reports; `schema-sync --write` adds new schema strings to the dictionary |
 | `docs/i18n/glossary.md` | terminology (main copy; NikNikolaenkov/webmail follows it) |
-| `.github/workflows/uk-sync-release.yml` | nightly sync and release; builds with `VITE_PEOPLE_HELPER_URL=https://people.servgc.space` (not a secret; empty = no «Персонал») |
+| `.github/workflows/uk-sync-release.yml` | nightly sync and release; builds with the repository variables `PEOPLE_HELPER_URL` → `VITE_PEOPLE_HELPER_URL` and `PEOPLE_UI_ORIGINS` → `VITE_PEOPLE_UI_ORIGINS` (not secrets; empty = no «Персонал») |
 
 Upstream `build.yml` is disabled in this repository's Actions settings.
 

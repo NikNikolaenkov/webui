@@ -41,10 +41,19 @@ export function isHrRole(role: PeopleRole | null | undefined): boolean {
 
 const keep: Label = (_key, fallback) => fallback;
 
-export function peopleLayout(role: PeopleRole, label: Label = keep): Layout {
+/**
+ * What the helper said about this session: a role, `misconfigured` (it refused the admin UI by policy — the section
+ * appears with one entry that explains the configuration error), or null (no section).
+ */
+export type PeopleAccessState = PeopleRole | 'misconfigured' | null;
+
+export function peopleLayout(role: PeopleRole | 'misconfigured', label: Label = keep): Layout {
   const link = (key: string, fallback: string, icon: string, viewName: string): LayoutItem => ({
     link: { name: label(`people.menu.${key}`, fallback), icon, viewName },
   });
+  if (role === 'misconfigured') {
+    return { name: PEOPLE_SECTION, icon: 'contact', items: [link('people', 'People', 'users', PEOPLE_VIEWS.people)] };
+  }
   return {
     name: PEOPLE_SECTION,
     icon: 'contact',
@@ -60,12 +69,13 @@ export function peopleLayout(role: PeopleRole, label: Label = keep): Layout {
 }
 
 /**
- * The schema with the «Персонал» section (before «Account», else last) when `role` is a people role; otherwise
+ * The schema with the «Персонал» section (before «Account», else last) when `role` is a people role (or
+ * `misconfigured`); otherwise
  * the schema unchanged. Never mutates the input; replaces an earlier copy of the section.
  */
 export function withPeopleSection<S extends { layouts: Layout[] }>(
   schema: S,
-  role: PeopleRole | null,
+  role: PeopleAccessState,
   label?: Label,
 ): S {
   if (!role) return schema;
