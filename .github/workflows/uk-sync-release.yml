@@ -95,7 +95,7 @@ jobs:
 
       - name: Fork tests
         if: steps.merge.outputs.skip != 'true'
-        run: node --experimental-strip-types --test tests/i18n/*.test.ts
+        run: node --experimental-strip-types --test "tests/**/*.test.ts"
 
       - name: Translation coverage (report only)
         if: steps.merge.outputs.skip != 'true'
@@ -111,6 +111,9 @@ jobs:
 
       - name: Build webui.zip
         if: steps.merge.outputs.skip != 'true'
+        env:
+          # «Персонал» calls the people helper with the admin's own Stalwart token (not a secret).
+          VITE_PEOPLE_HELPER_URL: https://people.servgc.space
         run: |
           npm run build
           (cd dist && zip -qr ../webui.zip .)

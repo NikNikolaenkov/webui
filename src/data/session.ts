@@ -13,6 +13,7 @@ import { useAccountStore } from '@/stores/accountStore';
 import { setLocale } from '@/i18n';
 import { loadSchemaDictionary } from '@/i18n/schema/load';
 import { translateSchema } from '@/i18n/schema/translate';
+import { addPeopleSection, loadPeopleRole } from '@/features/people/access';
 
 export interface SessionInfo {
   accounts: Record<string, { name: string; isPersonal: boolean }>;
@@ -44,6 +45,7 @@ export function parseSession(session: JmapSession): SessionInfo {
 }
 
 export async function initializeSession(signal?: AbortSignal): Promise<true> {
+  const peopleRole = loadPeopleRole(signal);
   const [session, schema, account] = await Promise.all([
     fetchSession(signal),
     fetchSchema(signal),
@@ -56,7 +58,8 @@ export async function initializeSession(signal?: AbortSignal): Promise<true> {
     .setSession(info.accounts, info.primaryAccountId, info.apiUrl, info.maxObjectsInGet, info.maxObjectsInSet);
   setLocale(account.locale);
   const dict = await loadSchemaDictionary(account.locale);
-  useSchemaStore.getState().setSchema(dict ? translateSchema(schema, dict) : schema);
+  const translated = dict ? translateSchema(schema, dict) : schema;
+  useSchemaStore.getState().setSchema(addPeopleSection(translated, await peopleRole));
   useAccountStore.getState().setAccountInfo(account.permissions, account.edition, account.locale);
   return true;
 }

@@ -47,6 +47,10 @@ const ActionPage = lazyFeature(
   () => import('@/features/actions/ActionPage'),
   (m) => m.ActionPage,
 );
+const PeopleSection = lazyFeature(
+  () => import('@/features/people/PeopleSection'),
+  (m) => m.PeopleSection,
+);
 
 interface MainContentProps {
   viewName?: string;
@@ -99,6 +103,9 @@ function renderView(
     // SPDX-SnippetEnd
     if (componentName === 'LiveDelivery') {
       return <DeliveryTracePage />;
+    }
+    if (componentName.startsWith('People')) {
+      return <PeopleSection component={componentName} />;
     }
     // SPDX-SnippetBegin
     // SPDX-FileCopyrightText: 2020 Stalwart Labs LLC <hello@stalw.art>

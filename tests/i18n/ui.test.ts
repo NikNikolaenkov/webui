@@ -26,8 +26,9 @@ const en = flatten(read('en'));
 const uk = flatten(read('uk'));
 const PLURAL = /_(one|few|many|other)$/;
 const placeholders = (s: string) => [...new Set(s.match(/\{\{[^}]+\}\}/g) ?? [])].sort();
-// Fork-only keys: names of the top-level layout sections (route ids in the schema).
-const FORK_ONLY = /^layouts\./;
+// Fork-only keys: names of the top-level layout sections (route ids in the schema) and the «Персонал» section
+// (src/features/people; English is the default value in t()).
+const FORK_ONLY = /^(layouts|people)\./;
 
 test('uk.json keeps placeholders', () => {
   for (const [key, text] of uk) {
