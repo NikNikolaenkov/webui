@@ -27,7 +27,7 @@ import {
   useRefreshPeople,
   useUnits,
 } from '../queries';
-import { cardFields } from '../custom';
+import { cardFields, customBlock } from '../custom';
 import { unitPath } from '../tree';
 import { formatDate } from '../styles';
 import { Choice } from '../components/fields';
@@ -55,6 +55,8 @@ export function PersonPage({ cardId }: { cardId: string }) {
   const units = useUnits();
   const lines = useLines();
   const fields = useFields();
+  // A failed refetch keeps the definitions already loaded; only a list that never loaded is an error.
+  const fieldsFailed = !!fields.error && !fields.data;
   const audit = useAudit(cardId);
   // Support never requests the HR card (the helper would refuse anyway): no HR widget is rendered for it.
   const hr = useHrCard(cardId, shouldLoadHr(role));
@@ -239,11 +241,15 @@ export function PersonPage({ cardId }: { cardId: string }) {
             </Section>
           )}
 
-          {sections.includes('work') && workFields.length > 0 && (
+          {sections.includes('work') && customBlock(fieldsFailed, workFields.length) !== 'none' && (
             <Section title={t('people.section.custom', 'Additional fields')}>
-              <dl>
-                <CustomFieldRows rows={workFields} />
-              </dl>
+              {fieldsFailed ? (
+                <ErrorNote error={fields.error} onRetry={() => void fields.refetch()} />
+              ) : (
+                <dl>
+                  <CustomFieldRows rows={workFields} />
+                </dl>
+              )}
             </Section>
           )}
 
@@ -347,6 +353,11 @@ export function PersonPage({ cardId }: { cardId: string }) {
                   </dl>
                 )
               )}
+              {hr.data && fieldsFailed && (
+                <div className="mt-3">
+                  <ErrorNote error={fields.error} onRetry={() => void fields.refetch()} />
+                </div>
+              )}
             </Section>
           )}
 
@@ -399,6 +410,7 @@ export function PersonPage({ cardId }: { cardId: string }) {
           cardId={cardId}
           hr={hr.data}
           fields={fields.data ?? []}
+          fieldsFailed={fieldsFailed}
           unitId={p.unitId}
           units={units.data ?? []}
           onClose={() => setDialog(null)}

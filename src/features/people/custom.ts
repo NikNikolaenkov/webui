@@ -289,3 +289,43 @@ export function unitTreeOrder<U extends UnitNode>(units: readonly U[]): { unit: 
   }
   return out;
 }
+
+// ---------- a failed field list ----------
+
+/**
+ * What a card block of custom fields renders. A failed `/fields` request must not look like "no fields" (support could
+ * tell a caller the data is not filled): the block shows the error instead.
+ */
+export function customBlock(failed: boolean, rowCount: number): 'error' | 'rows' | 'none' {
+  return failed ? 'error' : rowCount > 0 ? 'rows' : 'none';
+}
+
+// ---------- editing a definition ----------
+
+export interface FieldDraft {
+  label: string;
+  hint: string;
+  unitIds: string[];
+  options: string[];
+}
+
+export type FieldChanges = Partial<Pick<FieldDef, 'label' | 'hint' | 'options' | 'unitIds'>>;
+
+const sameList = (a: readonly string[], b: readonly string[]) => a.length === b.length && a.every((x, i) => x === b[i]);
+const sameSet = (a: readonly string[], b: readonly string[]) => sameList([...a].sort(), [...b].sort());
+
+/**
+ * The PATCH of a definition edit: only the keys that differ from the definition the dialog opened with, so a later
+ * save does not revert another HR's concurrent change (e.g. a newly added option). Units compare as sets, options by
+ * content AND order; options only for a select. An empty object means: nothing to send.
+ */
+export function fieldPatch(original: FieldDef, draft: FieldDraft): FieldChanges {
+  const patch: FieldChanges = {};
+  const label = draft.label.trim();
+  if (label !== original.label) patch.label = label;
+  const hint = draft.hint.trim() || null;
+  if (hint !== (original.hint || null)) patch.hint = hint;
+  if (!sameSet(draft.unitIds, original.unitIds)) patch.unitIds = draft.unitIds;
+  if (original.type === 'select' && !sameList(draft.options, original.options ?? [])) patch.options = draft.options;
+  return patch;
+}

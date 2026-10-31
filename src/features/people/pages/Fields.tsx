@@ -18,7 +18,15 @@ import { cn } from '@/lib/utils';
 import { usePeopleAccess } from '../access';
 import { peopleApi, type FieldInput } from '../api';
 import { describeError } from '../client';
-import { FIELD_TYPES, reorderChanges, sortDefs, unitTreeOrder, type FieldDef, type FieldType } from '../custom';
+import {
+  FIELD_TYPES,
+  fieldPatch,
+  reorderChanges,
+  sortDefs,
+  unitTreeOrder,
+  type FieldDef,
+  type FieldType,
+} from '../custom';
 import { isHrRole } from '../menu';
 import type { Unit } from '../model';
 import { useFields, useRefreshPeople, useUnits } from '../queries';
@@ -279,12 +287,9 @@ function FieldDialog({
     setError(null);
     try {
       if (field) {
-        await peopleApi.updateField(field.id, {
-          label: label.trim(),
-          hint: hint.trim() || null,
-          unitIds,
-          ...(field.type === 'select' ? { options: opts } : {}),
-        });
+        // Only what this dialog changed: a stale copy must not revert another HR's concurrent edit.
+        const patch = fieldPatch(field, { label, hint, unitIds, options: opts });
+        if (Object.keys(patch).length) await peopleApi.updateField(field.id, patch);
       } else {
         const input: FieldInput = {
           label: label.trim(),

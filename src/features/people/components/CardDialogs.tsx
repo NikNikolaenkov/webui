@@ -23,7 +23,7 @@ import { buildCustomPatch, cardFields, withDraft, type FieldDef } from '../custo
 import type { HrCard, Person, Unit } from '../model';
 import { moveError, type MoveTarget } from '../tree';
 import { Choice, Field, Rows } from './fields';
-import { CustomFieldInputs } from './CustomFields';
+import { CustomFieldInputs, FieldsLoadFailed } from './CustomFields';
 import { describeError } from '../client';
 
 function FormDialog({
@@ -252,6 +252,7 @@ export function HrDialog({
   cardId,
   hr,
   fields,
+  fieldsFailed = false,
   unitId,
   units,
   onClose,
@@ -261,6 +262,8 @@ export function HrDialog({
   hr: HrCard;
   /** Definitions of the HR custom fields, the person's unit and all units (which fields concern them). */
   fields: FieldDef[];
+  /** The field list failed to load: a notice instead of custom inputs (nothing custom is sent). */
+  fieldsFailed?: boolean;
   unitId: string | null;
   units: Unit[];
   onClose: () => void;
@@ -328,6 +331,7 @@ export function HrDialog({
       <Field label={t('people.field.notes', 'HR notes')}>
         {(id) => <Textarea id={id} value={notes} onChange={(e) => setNotes(e.target.value)} />}
       </Field>
+      {fieldsFailed && <FieldsLoadFailed />}
       <CustomFieldInputs
         rows={rows}
         original={hr.custom}

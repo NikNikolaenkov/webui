@@ -18,7 +18,7 @@ import { buildCustomPatch, cardFields, withDraft } from '../custom';
 import { useFields } from '../queries';
 import { emptyForm, formToPatch, personToForm, type Person, type PersonForm, type Unit } from '../model';
 import { Choice, Field, Rows } from './fields';
-import { CustomFieldInputs } from './CustomFields';
+import { CustomFieldInputs, FieldsLoadFailed } from './CustomFields';
 import { describeError } from '../client';
 
 interface Props {
@@ -43,7 +43,9 @@ export function PersonFormDialog({ person, units, people, withHr, onClose, onSav
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Custom fields: those that concern the person's unit (the chosen one when creating, re-evaluated on change).
-  const fields = useFields().data ?? [];
+  const fieldsQuery = useFields();
+  const fields = fieldsQuery.data ?? [];
+  const fieldsFailed = !!fieldsQuery.error && !fieldsQuery.data;
   const [workDrafts, setWorkDrafts] = useState<Record<string, string>>({});
   const [hrDrafts, setHrDrafts] = useState<Record<string, string>>({});
   const unitOfPerson = person ? person.unitId : unitId;
@@ -207,6 +209,7 @@ export function PersonFormDialog({ person, units, people, withHr, onClose, onSav
             onChange={(rows) => set('systems', rows)}
           />
 
+          {fieldsFailed && <FieldsLoadFailed />}
           {workRows.length > 0 && (
             <div className="space-y-4 rounded-xl border border-border p-4">
               <p className="text-[11px] font-semibold uppercase tracking-wider text-dim">

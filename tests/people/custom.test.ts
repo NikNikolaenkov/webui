@@ -10,7 +10,9 @@ import {
   appliesTo,
   buildCustomPatch,
   cardFields,
+  customBlock,
   draftOf,
+  fieldPatch,
   formatValue,
   parseDraft,
   reorderChanges,
@@ -230,4 +232,33 @@ test('unitTreeOrder lists units depth-first by name with their depth, tolerates 
   const got = unitTreeOrder(list).map((r) => `${r.depth}:${r.unit.id}`);
   assert.deepEqual(got.slice(0, 5), ['0:a', '1:a2', '1:a1', '0:b', '0:o']);
   assert.equal(got.length, list.length);
+});
+
+test('fieldPatch: only what differs from the definition the dialog opened with', () => {
+  const original = def({
+    id: 'f1',
+    label: 'Розмір',
+    type: 'select',
+    options: ['S', 'M'],
+    unitIds: ['u1', 'u2'],
+    hint: 'Підказка',
+  });
+  const same = { label: ' Розмір ', hint: ' Підказка ', unitIds: ['u2', 'u1'], options: ['S', 'M'] };
+  assert.deepEqual(fieldPatch(original, same), {});
+  assert.deepEqual(fieldPatch(original, { ...same, label: 'Розмір форми' }), { label: 'Розмір форми' });
+  assert.deepEqual(fieldPatch(original, { ...same, hint: '' }), { hint: null });
+  assert.deepEqual(fieldPatch(original, { ...same, unitIds: ['u1'] }), { unitIds: ['u1'] });
+  // options: content and order matter
+  assert.deepEqual(fieldPatch(original, { ...same, options: ['M', 'S'] }), { options: ['M', 'S'] });
+  assert.deepEqual(fieldPatch(original, { ...same, options: ['S', 'M', 'L'] }), { options: ['S', 'M', 'L'] });
+  // a non-select field never sends options; an empty hint equals a missing one
+  const text = def({ id: 'f2', label: 'Нотатка', hint: null });
+  assert.deepEqual(fieldPatch(text, { label: 'Нотатка', hint: '', unitIds: [], options: ['x'] }), {});
+});
+
+test('customBlock: a failed field list is an error, never a silently missing section', () => {
+  assert.equal(customBlock(true, 0), 'error');
+  assert.equal(customBlock(true, 3), 'error');
+  assert.equal(customBlock(false, 2), 'rows');
+  assert.equal(customBlock(false, 0), 'none');
 });

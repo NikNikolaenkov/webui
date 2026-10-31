@@ -19,6 +19,19 @@ function useYesNo() {
   return { yes: t('common.yes', 'Yes'), no: t('common.no', 'No') };
 }
 
+/** Dialog notice: the field list could not be loaded, so no custom inputs are shown and no custom keys are sent. */
+export function FieldsLoadFailed() {
+  const { t } = useTranslation();
+  return (
+    <p role="alert" className="rounded-xl bg-destructive-soft p-3 text-sm text-destructive">
+      {t(
+        'people.fields.loadFailed',
+        'Additional fields could not be loaded: they are missing here, not empty. Other fields can still be saved; no custom values are sent.',
+      )}
+    </p>
+  );
+}
+
 /** The markers of a stored value that the field's current definition no longer covers. */
 export function FieldMarkers({ row }: { row: Pick<CardField, 'archived' | 'outOfList' | 'outOfUnits'> }) {
   const { t } = useTranslation();
