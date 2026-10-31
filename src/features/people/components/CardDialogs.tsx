@@ -164,6 +164,87 @@ export function MoveDialog({
   );
 }
 
+/** «+ Підрозділ»: a unit card in «Персонал» (the helper creates it; parent and head are optional). */
+export function UnitDialog({
+  units,
+  people,
+  parentUnitId,
+  onClose,
+  onDone,
+}: {
+  units: Unit[];
+  people: Person[];
+  parentUnitId: string | null;
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const { t } = useTranslation();
+  const [name, setName] = useState('');
+  const [parent, setParent] = useState<string | null>(parentUnitId);
+  const [head, setHead] = useState<string | null>(null);
+  const [code, setCode] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = async () => {
+    if (!name.trim()) return setError(t('people.unit.nameRequired', 'Enter the unit name'));
+    setBusy(true);
+    setError(null);
+    try {
+      await peopleApi.createUnit({
+        name: name.trim(),
+        parentUnitId: parent,
+        headCardId: head,
+        bitrixCode: code.trim() || null,
+      });
+      onDone();
+    } catch (err) {
+      setError(describeError(err, t));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <FormDialog
+      title={t('people.unit.title', 'New unit')}
+      busy={busy}
+      error={error}
+      onClose={onClose}
+      onSubmit={() => void submit()}
+    >
+      <Field label={t('people.unit.name', 'Name')}>
+        {(id) => <Input id={id} value={name} onChange={(e) => setName(e.target.value)} autoFocus />}
+      </Field>
+      <Field label={t('people.unit.parent', 'Parent unit')}>
+        {(id) => (
+          <Choice
+            id={id}
+            value={parent}
+            onChange={setParent}
+            noneLabel={t('people.unit.top', '— top level —')}
+            options={units.map((u) => ({ value: u.id, label: u.name }))}
+          />
+        )}
+      </Field>
+      <Field label={t('people.unit.head', 'Head')}>
+        {(id) => (
+          <Choice
+            id={id}
+            value={head}
+            onChange={setHead}
+            noneLabel={t('people.none', '—')}
+            options={people.map((p) => ({ value: p.cardId, label: p.fullName }))}
+          />
+        )}
+      </Field>
+      <Field label={t('people.unit.bitrixCode', 'Bitrix24 code')}>
+        {(id) => <Input id={id} value={code} onChange={(e) => setCode(e.target.value)} placeholder="1.3.3" />}
+      </Field>
+    </FormDialog>
+  );
+}
+
 /** The HR card (personal fields). Rendered only for HR and admins. */
 export function HrDialog({
   cardId,

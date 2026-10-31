@@ -89,6 +89,14 @@ export const peopleApi = {
     peopleFetch<LifecycleResult>(`/people/${enc(id)}/${LIFECYCLE_PATH[action]}`, { method: 'POST' }),
 
   listUnits: (signal?: AbortSignal) => peopleFetch<{ units: Unit[] }>('/units', { signal }).then((r) => r.units),
+  createUnit: (input: {
+    name: string;
+    parentUnitId?: string | null;
+    headCardId?: string | null;
+    bitrixCode?: string | null;
+  }) => peopleFetch<Unit>('/units', { method: 'POST', body: input }),
+  moveUnit: (id: string, parentUnitId: string | null) =>
+    peopleFetch<Unit>(`/units/${enc(id)}/move`, { method: 'POST', body: { parentUnitId } }),
 
   listLines: (signal?: AbortSignal) => peopleFetch<{ lines: Line[] }>('/lines', { signal }).then((r) => r.lines),
   createLine: (input: { number: string; label?: string }) =>
