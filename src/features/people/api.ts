@@ -11,6 +11,7 @@
 // (config.ts). Passwords in responses (unblock, restore, reset-password, create) are returned once with no-store;
 // callers show them once and keep them only in component state.
 
+import { getBasePath } from '@/lib/basePath';
 import { refreshAccessToken } from '@/services/api';
 import { useAuthStore } from '@/stores/authStore';
 import { helperRequest, PeopleApiError, type RequestOptions, type Transport } from './client';
@@ -25,7 +26,7 @@ export { PeopleApiError } from './client';
 
 /**
  * Build-time settings (not secrets): VITE_PEOPLE_HELPER_URL and VITE_PEOPLE_UI_ORIGINS. Null — section off, no
- * request — unless this page's origin is one of the configured admin UIs and the helper URL is https.
+ * request — unless this page (origin + base path) is one of the configured admin UIs and the helper URL is https.
  */
 export function helperUrl(): string | null {
   return resolveHelperUrl(
@@ -34,6 +35,7 @@ export function helperUrl(): string | null {
       uiOrigins: import.meta.env.VITE_PEOPLE_UI_ORIGINS as string | undefined,
     },
     window.location.origin,
+    getBasePath(),
   );
 }
 

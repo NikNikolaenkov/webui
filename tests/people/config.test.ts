@@ -42,3 +42,16 @@ test('helper URL must be https, except loopback for local checks', () => {
   assert.equal(on('http://127.0.0.1.evil.test'), null);
   assert.equal(on('https://helper.example.test/base/'), 'https://helper.example.test/base');
 });
+
+test('an entry with a path enables the section only in that UI (admin, not the account portal on the same origin)', () => {
+  const MAIL = 'https://mail.example.test';
+  const env = { helperUrl: HELPER, uiOrigins: `${MAIL}/admin` };
+  assert.equal(resolveHelperUrl(env, MAIL, '/admin'), HELPER);
+  assert.equal(resolveHelperUrl(env, MAIL, '/admin/'), HELPER, 'trailing slash on the base path');
+  assert.equal(resolveHelperUrl(env, MAIL, '/account'), null, 'account portal: its tokens are refused by the helper');
+  assert.equal(resolveHelperUrl(env, MAIL, ''), null, 'root app');
+  assert.equal(resolveHelperUrl(env, MAIL, '/administrator'), null, 'no prefix match');
+  assert.equal(resolveHelperUrl({ helperUrl: HELPER, uiOrigins: `${MAIL}/admin/` }, MAIL, '/admin'), HELPER);
+  // An entry without a path keeps today's meaning: any app on that origin.
+  assert.equal(resolveHelperUrl({ helperUrl: HELPER, uiOrigins: MAIL }, MAIL, '/account'), HELPER);
+});
