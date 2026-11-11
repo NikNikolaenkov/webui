@@ -127,7 +127,8 @@ jobs:
         if: steps.merge.outputs.skip != 'true'
         run: |
           git push origin HEAD:uk
-          git push origin upstream/main:refs/heads/main
+          # main is a pure mirror of upstream, and upstream sometimes rewrites its history.
+          git push --force-with-lease origin upstream/main:refs/heads/main
 
       - name: Release
         if: steps.merge.outputs.skip != 'true'
