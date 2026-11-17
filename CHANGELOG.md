@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/).
 
+## [2.0.7] - Unreleased
+
+### Fixed
+- Switching an object to another variant (for example an MTA route from Local to MX) no longer fails with "name: required": unchanged immutable fields are now sent with the new variant.
+
 ## [2.0.6] - 2026-11-13
 
 ### Fixed

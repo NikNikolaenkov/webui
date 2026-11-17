@@ -153,7 +153,6 @@ export function buildUpdatePatch(original: FieldValues, data: FieldValues, field
       if (key === 'id') continue;
       const field = fields?.properties[key];
       if (field?.update === 'serverSet') continue;
-      if (field?.update === 'immutable' && valuesEqual(original[key], value)) continue;
       if (field && isUnchangedSecret(field, value)) continue;
       patch[key] = value === undefined ? null : withoutMaskedSecrets(value);
     }
